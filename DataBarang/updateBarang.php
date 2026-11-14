@@ -44,6 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pesanError = "Nama barang tidak boleh mengulang karakter 3 kali berturut-turut.";
     }
 
+    $cek_siswa = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id_siswa AND role = 'siswa'");
+    if (!$cek_siswa || mysqli_num_rows($cek_siswa) === 0) {
+        $pesanError = "Siswa pemilik tidak valid.";
+    }
+
+    $cek_loker = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE id_loker = $id_loker_baru");
+    if (!$cek_loker || mysqli_num_rows($cek_loker) === 0) {
+        $pesanError = "Loker yang dipilih tidak valid.";
+    }
+
     $nama_file_foto = $barang['foto_barang'];
     $foto_lama = $barang['foto_barang'];
 
@@ -91,29 +101,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $id_admin = (int)($_SESSION['id_user'] ?? 30);
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ('$id_admin', 'Ubah', '$id', NOW())");
+        $id_admin = dapatkanIdUserAktif($koneksi, 'admin');
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_admin, 'Ubah', $id, NOW())");
 
-        if ($status === 'Tersimpan') {
-            mysqli_query($koneksi, "UPDATE loker SET status = 'Terisi' WHERE id_loker = '$id_loker_baru'");
-        }
-
-        foreach (array_unique([$id_loker_lama, $id_loker_baru]) as $id_loker) {
-            $cekLoker = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang
-                WHERE id_loker = '$id_loker' AND status = 'Tersimpan'");
-
-            if (mysqli_fetch_assoc($cekLoker)['total'] == 0) {
-                mysqli_query($koneksi, "UPDATE loker SET status = 'Kosong' WHERE id_loker = '$id_loker'");
-            }
-        }
+        perbaruiStatusLoker($koneksi, $id_loker_lama);
+        perbaruiStatusLoker($koneksi, $id_loker_baru);
 
         header("Location: indexBarang.php?pesan=sukses_edit");
         exit();
     }
 }
 
-$queryLoker = mysqli_query($koneksi, "SELECT id_loker, nomor_loker FROM loker ORDER BY nomor_loker ASC");
+$queryLoker = mysqli_query($koneksi, "SELECT l.id_loker, l.nomor_loker, g.nama_gedung FROM loker l LEFT JOIN gedung g ON l.id_gedung = g.id_gedung ORDER BY l.nomor_loker ASC");
 $querySiswa = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, username FROM users WHERE role = 'siswa' ORDER BY nama_lengkap ASC");
 $path_foto = 'uploads/' . $barang['foto_barang'];
 $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
@@ -147,16 +147,15 @@ $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
         <form action="updateBarang.php" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="id" value="<?= $barang['id_barang'] ?>">
 
-
             <div class="form-group">
                 <label for="id_siswa">Siswa Pemilik:</label>
                 <select name="id_siswa" id="id_siswa" class="form-control" required>
                     <option value="">Pilih Siswa</option>
-                    <?php while ($s = mysqli_fetch_assoc($querySiswa)): ?>
+                    <?php if ($querySiswa): while ($s = mysqli_fetch_assoc($querySiswa)): ?>
                         <option value="<?= $s['id_user'] ?>" <?= ($barang['id_siswa'] == $s['id_user']) ? 'selected' : '' ?>>
                             <?= htmlspecialchars($s['nama_lengkap']) ?> (NIS: <?= htmlspecialchars($s['username']) ?>)
                         </option>
-                    <?php endwhile; ?>
+                    <?php endwhile; endif; ?>
                 </select>
             </div>
 
@@ -164,11 +163,11 @@ $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
                 <label for="id_loker">Loker Tujuan:</label>
                 <select name="id_loker" id="id_loker" class="form-control" required>
                     <option value="">Pilih Loker</option>
-                    <?php while ($l = mysqli_fetch_assoc($queryLoker)): ?>
+                    <?php if ($queryLoker): while ($l = mysqli_fetch_assoc($queryLoker)): ?>
                         <option value="<?= $l['id_loker'] ?>" <?= ($barang['id_loker'] == $l['id_loker']) ? 'selected' : '' ?>>
-                            Loker <?= htmlspecialchars($l['nomor_loker']) ?>
+                            Loker <?= htmlspecialchars($l['nomor_loker']) ?> - <?= htmlspecialchars($l['nama_gedung'] ?? '') ?>
                         </option>
-                    <?php endwhile; ?>
+                    <?php endwhile; endif; ?>
                 </select>
             </div>
 

@@ -14,13 +14,13 @@ if (isset($_GET['aksi']) && $_GET['aksi'] === 'verifikasi') {
         $data = mysqli_fetch_assoc($q);
         if ($data) {
             $id_loker = (int)$data['id_loker'];
-            $id_admin = (int)($_SESSION['id_user'] ?? 30);
+            $id_admin = dapatkanIdAdminAktif($koneksi);
 
             mysqli_query($koneksi, "UPDATE barang SET status = 'Sudah diambil', waktu_pengambilan = NOW() WHERE id_barang = $id");
 
             perbaruiStatusLoker($koneksi, $id_loker);
 
-            @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', $id, NOW())");
+            mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', $id, NOW())");
 
             header("Location: databarang.php?pesan=sukses_verifikasi");
             exit();
@@ -38,7 +38,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] === 'hapus') {
         if ($data) {
             $id_loker = (int)$data['id_loker'];
             $foto = $data['foto_barang'] ?? '';
-            $id_admin = (int)($_SESSION['id_user'] ?? 30);
+            $id_admin = dapatkanIdAdminAktif($koneksi);
 
             if (!empty($foto)) {
                 $paths = [
@@ -54,7 +54,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] === 'hapus') {
 
             perbaruiStatusLoker($koneksi, $id_loker);
 
-            @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Hapus', NULL, NOW())");
+            mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Hapus', NULL, NOW())");
 
             header("Location: databarang.php?pesan=sukses_hapus");
             exit();
@@ -75,7 +75,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_massal']
     $sanitized = array_map('intval', $ids);
     $id_list = implode(',', $sanitized);
     $total = count($sanitized);
-    $id_admin = (int)($_SESSION['id_user'] ?? 30);
+    $id_admin = dapatkanIdAdminAktif($koneksi);
 
     $qLok = mysqli_query($koneksi, "SELECT DISTINCT id_loker FROM barang WHERE id_barang IN ($id_list)");
     $loker_terpengaruh = [];
@@ -85,7 +85,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_massal']
 
     if ($aksi === 'verifikasi') {
         mysqli_query($koneksi, "UPDATE barang SET status = 'Sudah diambil', waktu_pengambilan = NOW() WHERE id_barang IN ($id_list) AND status = 'Tersimpan'");
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', NULL, NOW())");
         $pesan = "sukses_massal_verifikasi";
     } elseif ($aksi === 'hapus') {
         $qFoto = mysqli_query($koneksi, "SELECT foto_barang FROM barang WHERE id_barang IN ($id_list)");
@@ -99,7 +99,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_massal']
             }
         }
         mysqli_query($koneksi, "DELETE FROM barang WHERE id_barang IN ($id_list)");
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Hapus', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Hapus', NULL, NOW())");
         $pesan = "sukses_massal_hapus";
     }
 
@@ -121,6 +121,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
         exit();
     }
 
+    $cek_s = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id_siswa AND role = 'siswa'");
+    if (!$cek_s || mysqli_num_rows($cek_s) === 0) {
+        header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Siswa pemilik tidak valid."));
+        exit();
+    }
+
+    $cek_l = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE id_loker = $id_loker");
+    if (!$cek_l || mysqli_num_rows($cek_l) === 0) {
+        header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Loker yang dipilih tidak valid."));
+        exit();
+    }
+
     $nama_file_foto = '';
     if (isset($_FILES['foto_barang']) && $_FILES['foto_barang']['error'] === 0) {
         $file_tmp = $_FILES['foto_barang']['tmp_name'];
@@ -135,7 +147,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
     }
 
     $nama_clean = mysqli_real_escape_string($koneksi, $nama_barang);
-    $id_admin = (int)($_SESSION['id_user'] ?? 30);
+    $id_admin = dapatkanIdAdminAktif($koneksi);
 
     mysqli_query($koneksi, "INSERT INTO barang (id_siswa, id_loker, nama_barang, foto_barang, waktu_penitipan, status, waktu_pengambilan)
         VALUES ($id_siswa, $id_loker, '$nama_clean', '$nama_file_foto', NOW(), 'Tersimpan', NULL)");
@@ -143,7 +155,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
 
     perbaruiStatusLoker($koneksi, $id_loker);
 
-    @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+    mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
         VALUES ($id_admin, 'Tambah', $id_baru, NOW())");
 
     header("Location: databarang.php?pesan=sukses_tambah");
@@ -161,6 +173,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
     $bCur = mysqli_fetch_assoc($qCur);
 
     if ($bCur && !empty($nama_barang) && $id_siswa > 0 && $id_loker_baru > 0) {
+        $cek_s = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id_siswa AND role = 'siswa'");
+        $cek_l = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE id_loker = $id_loker_baru");
+
+        if (!$cek_s || mysqli_num_rows($cek_s) === 0 || !$cek_l || mysqli_num_rows($cek_l) === 0) {
+            header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Siswa atau loker tidak valid."));
+            exit();
+        }
+
         $id_loker_lama = (int)$bCur['id_loker'];
         $status_lama = $bCur['status'];
         $nama_file_foto = $bCur['foto_barang'];
@@ -184,7 +204,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
 
         $nama_clean = mysqli_real_escape_string($koneksi, $nama_barang);
         $foto_clean = mysqli_real_escape_string($koneksi, $nama_file_foto);
-        $id_admin = (int)($_SESSION['id_user'] ?? 30);
+        $id_admin = dapatkanIdAdminAktif($koneksi);
 
         $waktu_sql = "";
         if ($status_baru === 'Sudah diambil' && $status_lama === 'Tersimpan') {
@@ -207,7 +227,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
         }
         perbaruiStatusLoker($koneksi, $id_loker_baru);
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', $id_barang, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin, 'Ubah', $id_barang, NOW())");
 
         header("Location: databarang.php?pesan=sukses_edit");
         exit();
@@ -413,7 +433,6 @@ if ($koneksi) {
                             </option>
                         <?php endforeach; ?>
                     </select>
-
                 </form>
 
                 <div style="display: flex; gap: 8px;">
@@ -468,7 +487,7 @@ if ($koneksi) {
                             <?php if (!empty($daftar_barang)): ?>
                                 <?php $no = 1; foreach ($daftar_barang as $b): ?>
                                     <?php
-                            $foto = $b['foto_barang'] ?? '';
+                                        $foto = $b['foto_barang'] ?? '';
                                         $path_foto = '';
                                         if ($foto !== '') {
                                             if (file_exists(__DIR__ . "/../DataBarang/uploads/$foto")) $path_foto = "../DataBarang/uploads/$foto";
@@ -491,7 +510,7 @@ if ($koneksi) {
                                         <td style="text-align: center;">
                                             <div class="thumb-foto">
                                                 <?php if ($path_foto !== ''): ?>
-                                                    <img src="<?= $path_foto ?>" alt="Foto" onclick="bukaModalFoto('<?= $path_foto ?>', '<?= htmlspecialchars($b['nama_barang']) ?>')">
+                                                    <img src="<?= $path_foto ?>" alt="Foto" onclick="bukaModalFoto('<?= $path_foto ?>', '<?= htmlspecialchars(addslashes($b['nama_barang'])) ?>')">
                                                 <?php else: ?>
                                                     <span style="font-size: 11px; color: #9E988E;">-</span>
                                                 <?php endif; ?>
@@ -519,10 +538,10 @@ if ($koneksi) {
                                         </td>
                                         <td style="text-align: center; white-space: nowrap;">
                                             <?php if ($b['status'] === 'Tersimpan'): ?>
-                                                <a href="databarang.php?aksi=verifikasi&id=<?= $b['id_barang'] ?>" class="btn btn-sm btn-success" onclick="return confirm('Apakah barang <?= htmlspecialchars($b['nama_barang']) ?> sudah diambil oleh siswa?')">Verifikasi</a>
+                                                <a href="databarang.php?aksi=verifikasi&id=<?= $b['id_barang'] ?>" class="btn btn-sm btn-success" onclick="return confirm('Apakah barang <?= htmlspecialchars(addslashes($b['nama_barang'])) ?> sudah diambil oleh siswa?')">Verifikasi</a>
                                             <?php endif; ?>
                                             <button type="button" class="btn btn-sm btn-secondary" onclick='bukaModalEdit(<?= $json_b ?>)'>Edit</button>
-                                            <a href="databarang.php?aksi=hapus&id=<?= $b['id_barang'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus permanen data barang <?= htmlspecialchars($b['nama_barang']) ?>?')">Hapus</a>
+                                            <a href="databarang.php?aksi=hapus&id=<?= $b['id_barang'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Yakin ingin menghapus permanen data barang <?= htmlspecialchars(addslashes($b['nama_barang'])) ?>?')">Hapus</a>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -568,7 +587,7 @@ if ($koneksi) {
                             <option value="">Pilih Loker</option>
                             <?php foreach ($daftar_loker_pilihan as $lk): ?>
                                 <option value="<?= $lk['id_loker'] ?>">
-                                    Loker <?= htmlspecialchars($lk['nomor_loker']) ?> (<?= $lk['status'] ?>)
+                                    Loker <?= htmlspecialchars($lk['nomor_loker']) ?> - <?= htmlspecialchars($lk['nama_gedung'] ?? '') ?> (<?= $lk['status'] ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -623,7 +642,7 @@ if ($koneksi) {
                             <option value="">Pilih Loker</option>
                             <?php foreach ($daftar_loker_pilihan as $lk): ?>
                                 <option value="<?= $lk['id_loker'] ?>">
-                                    Loker <?= htmlspecialchars($lk['nomor_loker']) ?>
+                                    Loker <?= htmlspecialchars($lk['nomor_loker']) ?> - <?= htmlspecialchars($lk['nama_gedung'] ?? '') ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

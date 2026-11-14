@@ -4,10 +4,11 @@ require_once "connectBarang.php";
 $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
 
 $query = mysqli_query($koneksi, "SELECT b.*, u.nama_lengkap AS nama_siswa, u.username AS nis_siswa,
-        l.nomor_loker
+        l.nomor_loker, g.nama_gedung AS lokasi
     FROM barang b
     LEFT JOIN users u ON b.id_siswa = u.id_user
     LEFT JOIN loker l ON b.id_loker = l.id_loker
+    LEFT JOIN gedung g ON l.id_gedung = g.id_gedung
     WHERE b.id_barang = '$id'");
 $barang = mysqli_fetch_assoc($query);
 
@@ -28,21 +29,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['konfirmasi_ambil'])) 
         mysqli_query($koneksi, "UPDATE barang SET status = 'Sudah diambil', waktu_pengambilan = NOW()
             WHERE id_barang = '$id'");
 
-        $id_aktor = (int)($_SESSION['id_user'] ?? $barang['id_siswa']);
-        if ($id_aktor <= 0) {
-            $id_aktor = 30;
-        }
+        $id_aktor = dapatkanIdUserAktif($koneksi, 'admin');
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ('$id_aktor', 'Ubah', '$id', NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_aktor, 'Ubah', '$id', NOW())");
 
-        $cekSisa = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang
-            WHERE id_loker = '$id_loker' AND status = 'Tersimpan'");
-        $sisa = mysqli_fetch_assoc($cekSisa)['total'];
-
-        if ($sisa == 0) {
-            mysqli_query($koneksi, "UPDATE loker SET status = 'Kosong' WHERE id_loker = '$id_loker'");
-        }
+        perbaruiStatusLoker($koneksi, $id_loker);
     }
 
     header("Location: indexBarang.php?pesan=sukses_ambil");
@@ -90,7 +82,7 @@ $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
                     </tr>
                     <tr>
                         <th>Loker</th>
-                        <td>Loker <?= htmlspecialchars($barang['nomor_loker'] ?? '-') ?></td>
+                        <td>Loker <?= htmlspecialchars($barang['nomor_loker'] ?? '-') ?> <?= !empty($barang['lokasi']) ? '(' . htmlspecialchars($barang['lokasi']) . ')' : '' ?></td>
                     </tr>
                     <tr>
                         <th>Waktu Penitipan</th>

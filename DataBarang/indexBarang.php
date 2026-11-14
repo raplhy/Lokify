@@ -40,13 +40,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi_massal'])) {
         }
     }
 
-    $id_admin = (int)($_SESSION['id_user'] ?? 30);
+    $id_admin = dapatkanIdUserAktif($koneksi, 'admin');
 
     if ($aksi === 'verifikasi') {
         mysqli_query($koneksi, "UPDATE barang SET status = 'Sudah diambil', waktu_pengambilan = NOW()
             WHERE id_barang IN ($id_list) AND status = 'Tersimpan' $batas_siswa");
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ('$id_admin', 'Ubah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_admin, 'Ubah', NULL, NOW())");
         $pesan = "sukses_verifikasi_massal";
     } elseif ($aksi === 'hapus') {
         mysqli_query($koneksi, "DELETE FROM barang WHERE id_barang IN ($id_list) $batas_siswa");
@@ -59,21 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['aksi_massal'])) {
             }
         }
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ('$id_admin', 'Hapus', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_admin, 'Hapus', NULL, NOW())");
         $pesan = "sukses_hapus_massal";
     } else {
         header("Location: indexBarang.php");
         exit();
     }
 
-    foreach (array_unique($loker_terpengaruh) as $id_loker) {
-        $cekLoker = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang
-            WHERE id_loker = '$id_loker' AND status = 'Tersimpan'");
-
-        if (mysqli_fetch_assoc($cekLoker)['total'] == 0) {
-            mysqli_query($koneksi, "UPDATE loker SET status = 'Kosong' WHERE id_loker = '$id_loker'");
-        }
+    foreach (array_unique($loker_terpengaruh) as $id_lkr) {
+        perbaruiStatusLoker($koneksi, $id_lkr);
     }
 
     header("Location: indexBarang.php?pesan=$pesan&total=$jumlah");
@@ -203,6 +198,11 @@ $c_diambil = (int)($jumlahBarang['diambil'] ?? 0);
                     <button type="submit" name="aksi_massal" value="verifikasi" class="btn btn-sm btn-success" onclick="return konfirmasiAksi('verifikasi')">
                         Tandai Sudah Diambil
                     </button>
+                    <?php if ($role !== 'siswa'): ?>
+                    <button type="submit" name="aksi_massal" value="hapus" class="btn btn-sm btn-danger" onclick="return konfirmasiAksi('hapus')">
+                        Hapus Terpilih
+                    </button>
+                    <?php endif; ?>
                 </div>
             </div>
 
@@ -278,6 +278,11 @@ $c_diambil = (int)($jumlahBarang['diambil'] ?? 0);
                                         <a href="verificationBarang.php?id=<?= $row['id_barang'] ?>" class="btn btn-sm btn-primary">Verifikasi</a>
                                     <?php else: ?>
                                         <span style="font-size: 11px; color: #8C867D; font-weight: 600;">Selesai</span>
+                                    <?php endif; ?>
+
+                                    <?php if ($role !== 'siswa'): ?>
+                                        <a href="updateBarang.php?id=<?= $row['id_barang'] ?>" class="btn btn-sm btn-secondary" style="margin-left: 4px;">Edit</a>
+                                        <a href="deleteBarang.php?id=<?= $row['id_barang'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus data barang <?= htmlspecialchars(addslashes($row['nama_barang'])) ?>?')" style="margin-left: 4px;">Hapus</a>
                                     <?php endif; ?>
                                 </td>
                             </tr>

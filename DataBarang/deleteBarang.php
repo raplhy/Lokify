@@ -26,18 +26,12 @@ if ($id > 0) {
             }
         }
 
-        $id_admin = (int)($_SESSION['id_user'] ?? 30);
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ('$id_admin', 'Hapus', NULL, NOW())");
+        $id_admin = dapatkanIdUserAktif($koneksi, 'admin');
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_admin, 'Hapus', NULL, NOW())");
 
         if ($id_loker > 0) {
-            $cekLoker = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang
-                WHERE id_loker = '$id_loker' AND status = 'Tersimpan'");
-            $dataLoker = mysqli_fetch_assoc($cekLoker);
-
-            if ($dataLoker['total'] == 0) {
-                mysqli_query($koneksi, "UPDATE loker SET status = 'Kosong' WHERE id_loker = '$id_loker'");
-            }
+            perbaruiStatusLoker($koneksi, $id_loker);
         }
     }
 }

@@ -1,10 +1,57 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-if (!isset($_SESSION['id_user'])) {
-    $_SESSION['id_user']      = 30;
-    $_SESSION['username']     = 'admin';
-    $_SESSION['nama_lengkap'] = 'Administrator';
-    $_SESSION['role']         = 'admin';
+$id_sesi = (int)($_SESSION['id_user'] ?? 0);
+$sesi_valid = false;
+if ($id_sesi > 0 && isset($koneksi) && $koneksi) {
+    $cek_sesi = mysqli_query($koneksi, "SELECT id_user, username, nama_lengkap, role FROM users WHERE id_user = $id_sesi");
+    if ($cek_sesi && $r_sesi = mysqli_fetch_assoc($cek_sesi)) {
+        $_SESSION['id_user']      = (int)$r_sesi['id_user'];
+        $_SESSION['username']     = $r_sesi['username'];
+        $_SESSION['nama_lengkap'] = $r_sesi['nama_lengkap'];
+        $_SESSION['role']         = $r_sesi['role'];
+        $sesi_valid = true;
+    }
+}
+
+if (!$sesi_valid && isset($koneksi) && $koneksi) {
+    $q_adm = mysqli_query($koneksi, "SELECT id_user, username, nama_lengkap, role FROM users WHERE role = 'admin' LIMIT 1");
+    if ($q_adm && $r_adm = mysqli_fetch_assoc($q_adm)) {
+        $_SESSION['id_user']      = (int)$r_adm['id_user'];
+        $_SESSION['username']     = $r_adm['username'];
+        $_SESSION['nama_lengkap'] = $r_adm['nama_lengkap'];
+        $_SESSION['role']         = $r_adm['role'];
+    } else {
+        $_SESSION['id_user']      = 1;
+        $_SESSION['username']     = 'admin';
+        $_SESSION['nama_lengkap'] = 'Administrator';
+        $_SESSION['role']         = 'admin';
+    }
+}
+
+if (!function_exists('dapatkanIdAdminAktif')) {
+    function dapatkanIdAdminAktif($koneksi) {
+        $id = (int)($_SESSION['id_user'] ?? 0);
+        if ($id > 0 && isset($koneksi) && $koneksi) {
+            $cek = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id");
+            if ($cek && mysqli_num_rows($cek) > 0) {
+                return $id;
+            }
+        }
+        if (isset($koneksi) && $koneksi) {
+            $q = mysqli_query($koneksi, "SELECT id_user FROM users WHERE role = 'admin' LIMIT 1");
+            if ($q && $r = mysqli_fetch_assoc($q)) {
+                return (int)$r['id_user'];
+            }
+            $q2 = mysqli_query($koneksi, "SELECT id_user FROM users LIMIT 1");
+            if ($q2 && $r2 = mysqli_fetch_assoc($q2)) {
+                return (int)$r2['id_user'];
+            }
+        }
+        return 1;
+    }
 }
 
 $mock_gedung = [
@@ -32,7 +79,6 @@ foreach (['A' => 'Gedung A', 'B' => 'Gedung B', 'C' => 'Gedung C', 'D' => 'Gedun
 }
 
 $mock_barang = [];
-
 $mock_log = [];
 
 function tanggalIndonesia() {
@@ -56,6 +102,9 @@ function tanggalIndonesia() {
 
 function perbaruiStatusLoker($koneksi, $id_loker) {
     $id_loker = (int)$id_loker;
+    if ($id_loker <= 0 || !$koneksi) {
+        return;
+    }
 
     $q = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang WHERE id_loker = $id_loker AND status = 'Tersimpan'");
     if (!$q) {
@@ -70,23 +119,23 @@ function perbaruiStatusLoker($koneksi, $id_loker) {
 
 function ambilStatistik($koneksi, $mock_loker, $mock_barang) {
     if ($koneksi) {
-        $qTotalLoker = mysqli_query($koneksi, "SELECT id_loker FROM loker");
-        if ($qTotalLoker && mysqli_num_rows($qTotalLoker) > 0) {
-            $total_loker = mysqli_num_rows($qTotalLoker);
-            $b_tersimpan = mysqli_num_rows(mysqli_query($koneksi, "SELECT id_barang FROM barang WHERE status = 'Tersimpan'"));
-            $b_diambil   = mysqli_num_rows(mysqli_query($koneksi, "SELECT id_barang FROM barang WHERE status = 'Sudah diambil'"));
+        $qLokerStat = mysqli_query($koneksi, "SELECT 
+            COUNT(*) AS total,
+            SUM(status = 'Kosong') AS kosong,
+            SUM(status = 'Terisi') AS terisi
+            FROM loker");
+        if ($qLokerStat && $rowLoker = mysqli_fetch_assoc($qLokerStat)) {
+            $total_loker = (int)($rowLoker['total'] ?? 0);
+            $kosong      = (int)($rowLoker['kosong'] ?? 0);
+            $terisi      = (int)($rowLoker['terisi'] ?? 0);
 
-            $qLoker = mysqli_query($koneksi, "SELECT l.id_loker, COUNT(b.id_barang) AS terisi
-                                              FROM loker l
-                                              LEFT JOIN barang b ON l.id_loker = b.id_loker AND b.status = 'Tersimpan'
-                                              GROUP BY l.id_loker");
-
-            $kosong = 0; $terisi = 0;
-            while ($r = mysqli_fetch_assoc($qLoker)) {
-                $jml = (int)$r['terisi'];
-                if ($jml > 0) $terisi++;
-                else $kosong++;
-            }
+            $qBarangStat = mysqli_query($koneksi, "SELECT
+                SUM(status = 'Tersimpan') AS tersimpan,
+                SUM(status = 'Sudah diambil') AS diambil
+                FROM barang");
+            $rowBarang = mysqli_fetch_assoc($qBarangStat);
+            $b_tersimpan = (int)($rowBarang['tersimpan'] ?? 0);
+            $b_diambil   = (int)($rowBarang['diambil'] ?? 0);
 
             return [
                 'total_loker'      => $total_loker,
@@ -111,7 +160,7 @@ function ambilRingkasanGedung($koneksi, $mock_gedung = []) {
     if ($koneksi) {
         $sql = "SELECT g.id_gedung, g.nama_gedung,
                        COUNT(l.id_loker) AS total_loker,
-                       SUM(CASE WHEN (SELECT COUNT(*) FROM barang b WHERE b.id_loker = l.id_loker AND b.status = 'Tersimpan') > 0 THEN 1 ELSE 0 END) AS loker_terisi
+                       SUM(CASE WHEN l.status = 'Terisi' THEN 1 ELSE 0 END) AS loker_terisi
                 FROM gedung g
                 LEFT JOIN loker l ON g.id_gedung = l.id_gedung
                 GROUP BY g.id_gedung, g.nama_gedung
@@ -121,7 +170,6 @@ function ambilRingkasanGedung($koneksi, $mock_gedung = []) {
             $data = [];
             while ($r = mysqli_fetch_assoc($q)) {
                 $total  = (int)$r['total_loker'];
-                if ($total === 0) $total = 35;
                 $terisi = (int)($r['loker_terisi'] ?? 0);
                 $kosong = max(0, $total - $terisi);
                 $nama   = trim($r['nama_gedung']);
@@ -159,9 +207,9 @@ function ambilDaftarLoker($koneksi, $mock_loker) {
             $data = [];
             while ($r = mysqli_fetch_assoc($q)) {
                 $terisi = (int)$r['terisi'];
-                $r['lokasi']    = trim($r['nama_gedung'] ?? 'Gedung A');
+                $r['lokasi'] = trim($r['nama_gedung'] ?? 'Gedung A');
 
-                if ($terisi > 0) $r['status'] = 'Terisi';
+                if ($r['status'] === 'Terisi' || $terisi > 0) $r['status'] = 'Terisi';
                 else $r['status'] = 'Kosong';
 
                 $data[] = $r;
@@ -217,45 +265,27 @@ function ambilLogAktivitas($koneksi, $mock_log, $filter_aksi = '', $filter_tangg
         }
 
         $sql = "SELECT l.*, u.nama_lengkap AS nama_pengguna, u.role, b.nama_barang
-
                 FROM log_aktivitas l
-
                 LEFT JOIN users u ON l.id_admin = u.id_user
-
                 LEFT JOIN barang b ON l.id_barang_terkait = b.id_barang
-
                 $kondisi ORDER BY l.id_log DESC";
 
         $q = mysqli_query($koneksi, $sql);
 
         if ($q) {
-
             $data = [];
-
             while ($r = mysqli_fetch_assoc($q)) {
-
                 $r['nama_admin'] = $r['nama_pengguna'] ?? 'Administrator';
-
                 $r['role']       = $r['role'] ?? 'admin';
-
                 if (!empty($r['nama_barang'])) {
-
                     $r['barang'] = $r['nama_barang'];
-
                 } else {
-
                     $r['barang'] = 'Barang';
-
                 }
-
                 $data[] = $r;
-
             }
-
             return $data;
-
         }
-
     }
 
     return $mock_log;
@@ -367,3 +397,4 @@ function ambilGrafikSiswaBulanan($koneksi) {
         'max_val'      => $max_val
     ];
 }
+?>

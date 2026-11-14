@@ -4,27 +4,30 @@ require_once "connectBarang.php";
 $id_user = (int)($_SESSION['id_user'] ?? 0);
 $role = $_SESSION['role'] ?? '';
 
+$semuaSiswa = [];
+$querySemuaSiswa = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, username FROM users WHERE role = 'siswa' ORDER BY nama_lengkap ASC");
+if ($querySemuaSiswa) {
+    while ($s = mysqli_fetch_assoc($querySemuaSiswa)) {
+        $semuaSiswa[] = $s;
+    }
+}
+
 if ($role === 'siswa' && $id_user > 0) {
     $querySiswa = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, username FROM users
         WHERE id_user = '$id_user' AND role = 'siswa'");
-} else {
-    $querySiswa = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, username FROM users
-        WHERE role = 'siswa' ORDER BY id_user ASC LIMIT 1");
-}
-
-$siswa = mysqli_fetch_assoc($querySiswa);
-
-if (!$siswa) {
-    $querySiswa = mysqli_query($koneksi, "SELECT id_user, nama_lengkap, username FROM users
-        WHERE role = 'siswa' ORDER BY id_user ASC LIMIT 1");
     $siswa = mysqli_fetch_assoc($querySiswa);
+} else {
+    $siswa = !empty($semuaSiswa) ? $semuaSiswa[0] : null;
 }
 
 $id_siswa = (int)($siswa['id_user'] ?? 0);
 $nama_siswa = $siswa['nama_lengkap'] ?? 'Siswa';
 $nis_siswa = $siswa['username'] ?? '-';
 
-$queryLoker = mysqli_query($koneksi, "SELECT id_loker, nomor_loker FROM loker ORDER BY nomor_loker ASC");
+$queryLoker = mysqli_query($koneksi, "SELECT l.id_loker, l.nomor_loker, l.status, g.nama_gedung 
+    FROM loker l 
+    LEFT JOIN gedung g ON l.id_gedung = g.id_gedung 
+    ORDER BY l.nomor_loker ASC");
 $daftarBarang = ["Tas", "Jaket", "Helm", "Laptop", "Sepatu", "Buku", "Botol", "Lainnya"];
 ?>
 <!DOCTYPE html>
@@ -57,24 +60,35 @@ $daftarBarang = ["Tas", "Jaket", "Helm", "Laptop", "Sepatu", "Buku", "Botol", "L
         <form action="saveBarang.php" method="POST" enctype="multipart/form-data" id="formBarang">
 
             <div class="form-group">
-                <label for="id_siswa_display">Siswa Pemilik:</label>
-                <select id="id_siswa_display" class="form-control" disabled style="background-color: #F7F4EE; cursor: not-allowed; color: #1E1E1E; font-weight: 500;">
-                    <option value="<?= $id_siswa ?>" selected>
-                        <?= htmlspecialchars($nama_siswa) ?> (NIS: <?= htmlspecialchars($nis_siswa) ?>)
-                    </option>
-                </select>
-                <input type="hidden" name="id_siswa" value="<?= $id_siswa ?>">
+                <label for="id_siswa_select">Siswa Pemilik:</label>
+                <?php if ($role === 'siswa'): ?>
+                    <select id="id_siswa_select" class="form-control" disabled style="background-color: #F7F4EE; cursor: not-allowed; color: #1E1E1E; font-weight: 500;">
+                        <option value="<?= $id_siswa ?>" selected>
+                            <?= htmlspecialchars($nama_siswa) ?> (NIS: <?= htmlspecialchars($nis_siswa) ?>)
+                        </option>
+                    </select>
+                    <input type="hidden" name="id_siswa" value="<?= $id_siswa ?>">
+                <?php else: ?>
+                    <select name="id_siswa" id="id_siswa_select" class="form-control" required>
+                        <option value="">Pilih Siswa</option>
+                        <?php foreach ($semuaSiswa as $sw): ?>
+                            <option value="<?= $sw['id_user'] ?>" <?= ($sw['id_user'] == $id_siswa) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($sw['nama_lengkap']) ?> (NIS: <?= htmlspecialchars($sw['username']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </div>
 
             <div class="form-group">
                 <label for="id_loker">Loker Tujuan:</label>
                 <select name="id_loker" id="id_loker" class="form-control" required>
                     <option value="">Pilih Loker</option>
-                    <?php while ($l = mysqli_fetch_assoc($queryLoker)): ?>
+                    <?php if ($queryLoker): while ($l = mysqli_fetch_assoc($queryLoker)): ?>
                         <option value="<?= $l['id_loker'] ?>">
-                            Loker <?= $l['nomor_loker'] ?>
+                            Loker <?= htmlspecialchars($l['nomor_loker']) ?> - <?= htmlspecialchars($l['nama_gedung'] ?? '') ?> (<?= htmlspecialchars($l['status']) ?>)
                         </option>
-                    <?php endwhile; ?>
+                    <?php endwhile; endif; ?>
                 </select>
             </div>
 

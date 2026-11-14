@@ -21,6 +21,16 @@ if ($id_siswa <= 0 || $id_loker <= 0) {
     kembaliError("Siswa dan loker wajib dipilih.");
 }
 
+$cek_siswa = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id_siswa AND role = 'siswa'");
+if (!$cek_siswa || mysqli_num_rows($cek_siswa) === 0) {
+    kembaliError("Data siswa pemilik tidak valid.");
+}
+
+$cek_loker = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE id_loker = $id_loker");
+if (!$cek_loker || mysqli_num_rows($cek_loker) === 0) {
+    kembaliError("Data loker tidak valid.");
+}
+
 $pilihan_barang = $_POST['pilihan_barang'] ?? [];
 $custom_barang = $_POST['nama_barang_custom'] ?? [];
 $daftar_barang = [];
@@ -91,24 +101,21 @@ if (!move_uploaded_file($file_tmp, "uploads/" . $nama_file_foto)) {
     kembaliError("Foto gagal diunggah.");
 }
 
-$id_aktor = (int)($_SESSION['id_user'] ?? $id_siswa);
-if ($id_aktor <= 0) {
-    $id_aktor = 30;
-}
+$id_aktor = dapatkanIdUserAktif($koneksi, 'admin');
 
 foreach ($daftar_barang as $nama) {
     $nama = mysqli_real_escape_string($koneksi, $nama);
 
     mysqli_query($koneksi, "INSERT INTO barang
         (id_siswa, id_loker, nama_barang, foto_barang, waktu_penitipan, status, waktu_pengambilan)
-        VALUES ('$id_siswa', '$id_loker', '$nama', '$nama_file_foto', NOW(), 'Tersimpan', NULL)");
+        VALUES ($id_siswa, $id_loker, '$nama', '$nama_file_foto', NOW(), 'Tersimpan', NULL)");
 
     $id_baru = mysqli_insert_id($koneksi);
-    @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-        VALUES ('$id_aktor', 'Tambah', '$id_baru', NOW())");
+    mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+        VALUES ($id_aktor, 'Tambah', $id_baru, NOW())");
 }
 
-mysqli_query($koneksi, "UPDATE loker SET status = 'Terisi' WHERE id_loker = '$id_loker'");
+perbaruiStatusLoker($koneksi, $id_loker);
 
 header("Location: indexBarang.php?pesan=sukses_tambah");
 exit();

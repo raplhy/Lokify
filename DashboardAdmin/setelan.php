@@ -12,13 +12,14 @@ if (!in_array($tab, ['profil', 'keamanan', 'siswa'])) {
     $tab = 'profil';
 }
 
-$id_admin_session = (int)($_SESSION['id_user'] ?? 30);
+$id_admin_session = dapatkanIdAdminAktif($koneksi);
 $username_admin   = $_SESSION['username'] ?? 'admin';
 
 $admin_db = [
     'id_user'      => $id_admin_session,
     'nama_lengkap' => $nama_admin,
-    'username'     => $username_admin
+    'username'     => $username_admin,
+    'password'     => ''
 ];
 
 if ($koneksi) {
@@ -28,6 +29,9 @@ if ($koneksi) {
         $id_admin_session = (int)$admin_db['id_user'];
         $nama_admin = $admin_db['nama_lengkap'];
         $username_admin = $admin_db['username'];
+        $_SESSION['id_user']      = $id_admin_session;
+        $_SESSION['nama_lengkap'] = $nama_admin;
+        $_SESSION['username']     = $username_admin;
     }
 }
 
@@ -46,7 +50,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         mysqli_query($koneksi, "UPDATE users SET nama_lengkap = '$nama_clean' WHERE id_user = $id_admin_session");
         $_SESSION['nama_lengkap'] = $nama_input;
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
 
         header("Location: setelan.php?tab=profil&pesan=sukses_profil");
         exit();
@@ -79,7 +83,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $hash_baru = password_hash($pass_baru, PASSWORD_DEFAULT);
         mysqli_query($koneksi, "UPDATE users SET password = '$hash_baru' WHERE id_user = $id_admin_session");
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
 
         header("Location: setelan.php?tab=keamanan&pesan=sukses_password");
         exit();
@@ -107,7 +111,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 
         mysqli_query($koneksi, "INSERT INTO users (nama_lengkap, username, password, role) VALUES ('$nama_clean', '$nis_clean', '$hash_siswa', 'siswa')");
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Tambah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Tambah', NULL, NOW())");
 
         header("Location: setelan.php?tab=siswa&pesan=sukses_tambah_siswa");
         exit();
@@ -122,24 +126,32 @@ if (isset($_GET['aksi']) && $koneksi) {
         $hash_def = password_hash('123456', PASSWORD_DEFAULT);
         mysqli_query($koneksi, "UPDATE users SET password = '$hash_def' WHERE id_user = $id_target AND role = 'siswa'");
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Ubah', NULL, NOW())");
 
         header("Location: setelan.php?tab=siswa&pesan=sukses_reset_siswa");
         exit();
     }
 
     if ($aksi === 'hapus_siswa' && $id_target > 0) {
-        $cekBarang = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang WHERE id_siswa = $id_target AND status = 'Tersimpan'");
-        $jml = (int)(mysqli_fetch_assoc($cekBarang)['total'] ?? 0);
+        $cekBarangAktif = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang WHERE id_siswa = $id_target AND status = 'Tersimpan'");
+        $jmlAktif = (int)(mysqli_fetch_assoc($cekBarangAktif)['total'] ?? 0);
 
-        if ($jml > 0) {
+        if ($jmlAktif > 0) {
             header("Location: setelan.php?tab=siswa&pesan=error_siswa_ada_barang");
+            exit();
+        }
+
+        $cekSemuaBarang = mysqli_query($koneksi, "SELECT COUNT(*) AS total FROM barang WHERE id_siswa = $id_target");
+        $jmlSemua = (int)(mysqli_fetch_assoc($cekSemuaBarang)['total'] ?? 0);
+
+        if ($jmlSemua > 0) {
+            header("Location: setelan.php?tab=siswa&pesan=error_siswa_ada_riwayat");
             exit();
         }
 
         mysqli_query($koneksi, "DELETE FROM users WHERE id_user = $id_target AND role = 'siswa'");
 
-        @mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Hapus', NULL, NOW())");
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu) VALUES ($id_admin_session, 'Hapus', NULL, NOW())");
 
         header("Location: setelan.php?tab=siswa&pesan=sukses_hapus_siswa");
         exit();
@@ -238,6 +250,10 @@ if ($koneksi && $tab === 'siswa') {
             <?php elseif ($p === 'error_siswa_ada_barang'): ?>
                 <div class="alert-banner alert-banner-danger">
                     <span>Tidak dapat menghapus siswa karena masih memiliki barang yang tersimpan di loker.</span>
+                </div>
+            <?php elseif ($p === 'error_siswa_ada_riwayat'): ?>
+                <div class="alert-banner alert-banner-danger">
+                    <span>Tidak dapat menghapus siswa karena memiliki riwayat data penitipan barang.</span>
                 </div>
             <?php endif; ?>
         <?php endif; ?>
@@ -391,7 +407,7 @@ if ($koneksi && $tab === 'siswa') {
                                         </td>
                                         <td style="text-align: center; white-space: nowrap;">
                                             <a href="setelan.php?tab=siswa&aksi=reset_sandi_siswa&id=<?= $s['id_user'] ?>" class="btn btn-sm btn-secondary" onclick="return confirm('Reset kata sandi siswa <?= htmlspecialchars(addslashes($s['nama_lengkap'])) ?> menjadi 123456?')" style="font-size: 11px; padding: 4px 8px;">Reset Sandi</a>
-                                            <?php if ((int)$s['barang_aktif'] === 0): ?>
+                                            <?php if ((int)$s['total_titip'] === 0): ?>
                                                 <a href="setelan.php?tab=siswa&aksi=hapus_siswa&id=<?= $s['id_user'] ?>" class="btn btn-sm btn-danger" onclick="return confirm('Hapus akun siswa <?= htmlspecialchars(addslashes($s['nama_lengkap'])) ?>?')" style="font-size: 11px; padding: 4px 8px; margin-left: 4px;">Hapus</a>
                                             <?php endif; ?>
                                         </td>
