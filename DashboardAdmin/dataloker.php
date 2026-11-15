@@ -108,12 +108,23 @@ if ($gedung_get !== '' && !ctype_digit($gedung_get)) {
 $cari = trim($_GET['cari'] ?? '');
 $cari_aman = mysqli_real_escape_string($koneksi, $cari);
 
+/* Filter status loker: '' = semua, 'Kosong' = tidak terisi, 'Terisi' = terisi */
+$filter_status = trim($_GET['status'] ?? '');
+if (!in_array($filter_status, ['Kosong', 'Terisi'], true)) {
+    $filter_status = '';
+}
+
 $kondisi = [];
 if ($filter_gedung) {
     $kondisi[] = "loker.id_gedung = $filter_gedung";
 }
 if ($cari !== '') {
     $kondisi[] = "loker.nomor_loker LIKE '%$cari_aman%'";
+}
+if ($filter_status === 'Kosong') {
+    $kondisi[] = "loker.status = 'Kosong'";
+} elseif ($filter_status === 'Terisi') {
+    $kondisi[] = "loker.status != 'Kosong'";
 }
 $where = $kondisi ? "WHERE " . implode(" AND ", $kondisi) : "";
 
@@ -507,9 +518,14 @@ $daftar_gedung_filter = mysqli_query($koneksi, "SELECT id_gedung, nama_gedung FR
                                 </option>
                             <?php endwhile; ?>
                         </select>
+                        <select name="status" class="form-control filter-status" onchange="this.form.submit()" style="max-width: 150px;">
+                            <option value="">Semua Status</option>
+                            <option value="Kosong" <?= $filter_status === 'Kosong' ? 'selected' : '' ?>>Kosong</option>
+                            <option value="Terisi" <?= $filter_status === 'Terisi' ? 'selected' : '' ?>>Terisi</option>
+                        </select>
                         <input type="search" name="cari" class="form-control cari-loker" placeholder="Cari kode loker..." value="<?= htmlspecialchars($cari) ?>" style="max-width: 200px;" autocomplete="off">
                         <button type="submit" class="btn-cari">Cari</button>
-                        <?php if ($cari !== '' || $filter_gedung): ?>
+                        <?php if ($cari !== '' || $filter_gedung || $filter_status !== ''): ?>
                             <a href="dataloker.php" class="btn-reset">Reset</a>
                         <?php endif; ?>
                     </form>
