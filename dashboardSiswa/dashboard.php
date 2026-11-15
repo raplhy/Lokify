@@ -44,10 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan_barang'])) {
 }
 
 // ==========================================
-// 3. PROSES AMBIL BARANG
+// 3. PROSES AMBIL BARANG (FIXED)
 // ==========================================
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ambil_barang'])) {
-    $id_barang = mysqli_real_escape_string($koneksi, $_POST['id_barang'] ?? '');
+// Kita cek berdasarkan id_barang yang dikirim dari hidden input
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_barang']) && isset($_POST['gedung_asal'])) {
+    $id_barang = mysqli_real_escape_string($koneksi, $_POST['id_barang']);
     
     $q_brg = mysqli_query($koneksi, "SELECT id_loker FROM barang WHERE id_barang = '$id_barang' AND id_siswa = '$id_user'");
     $data_brg = mysqli_fetch_assoc($q_brg);
@@ -181,10 +182,8 @@ $query_tabel_str .= " ORDER BY b.waktu_penitipan DESC";
 $query_tabel = mysqli_query($koneksi, $query_tabel_str);
 
 // ==========================================
-// 8. LOGIKA RIWAYAT PENITIPAN (FIX: SEMUA GEDUNG)
+// 8. LOGIKA RIWAYAT PENITIPAN (SEMUA GEDUNG)
 // ==========================================
-// Query ini TIDAK memfilter berdasarkan gedung_aktif. 
-// Jadi dia narik semua riwayat siswa dari Gedung A, B, C, dan D.
 $query_riwayat = mysqli_query($koneksi, "
     SELECT b.*, l.nomor_loker, g.nama_gedung 
     FROM barang b
@@ -301,10 +300,11 @@ include __DIR__ . '/header.php';
                     </td>
                     <td>
                         <?php if ($row['status'] === 'Tersimpan'): ?>
-                            <form method="POST" style="margin: 0;" onsubmit="return confirm('Apakah Anda yakin ingin mengambil barang ini? Loker akan menjadi kosong kembali.');">
+                            <!-- FORM AMBIL BARANG (Tanpa name di button, biar JS yang handle) -->
+                            <form method="POST" class="form-ambil" style="margin: 0;" data-nama="<?= htmlspecialchars($nama_tampil) ?>">
                                 <input type="hidden" name="gedung_asal" value="<?= htmlspecialchars($gedung_aktif) ?>">
                                 <input type="hidden" name="id_barang" value="<?= $row['id_barang'] ?>">
-                                <button type="submit" name="ambil_barang" class="btn-primary" style="font-size: 11px; padding: 5px 10px; background: #dc2626; border-color: #dc2626;">Ambil</button>
+                                <button type="submit" class="btn-primary" style="font-size: 11px; padding: 5px 10px; background: #dc2626; border-color: #dc2626;">Ambil</button>
                             </form>
                         <?php else: ?>
                             <span style="font-size: 11px; color: #9E988E; font-style: italic;">Selesai</span>
@@ -412,7 +412,7 @@ include __DIR__ . '/header.php';
             </div>
             <div class="form-group">
                 <label>No. WhatsApp / Telepon</label>
-                <input type="text" name="no_hp" class="form-input" value="<?= htmlspecialchars($data_user['no_hp'] ?? ''); ?>" placeholder="08123456789">
+                <input type="text" name="no_hp" class="form-input" value="<?php echo htmlspecialchars($data_user['no_hp'] ?? ''); ?>" placeholder="08123456789">
             </div>
             <div class="form-group">
                 <label>Password Baru (Kosongkan jika tidak ingin diubah)</label>
@@ -427,7 +427,7 @@ include __DIR__ . '/header.php';
     </div>
 </div>
 
-<!-- MODAL 3: RIWAYAT (SUDAH GLOBAL SEMUA GEDUNG) -->
+<!-- MODAL 3: RIWAYAT -->
 <div class="modal-bg" id="modalHistory">
     <div class="modal-box modal-large">
         <h3><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Penitipan Barang (Seluruh Gedung)</h3>
@@ -480,8 +480,10 @@ include __DIR__ . '/header.php';
 </div>
 
 <!-- SCRIPT -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    // 1. Preview Foto
     const inputFoto = document.getElementById('foto_profil');
     if (inputFoto) {
         inputFoto.addEventListener('change', function(event) {
@@ -502,6 +504,7 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    // 2. Hilangkan Notifikasi Otomatis
     const notifSuccess = document.getElementById('notif-success');
     const notifError = document.getElementById('notif-error');
 
@@ -518,6 +521,31 @@ document.addEventListener("DOMContentLoaded", function() {
             setTimeout(() => notifError.remove(), 500);
         }, 3000);
     }
+
+    // 3. SweetAlert2 untuk Tombol "Ambil"
+    const formsAmbil = document.querySelectorAll('.form-ambil');
+    formsAmbil.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault(); 
+            
+            const namaBarang = this.getAttribute('data-nama');
+            
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                html: `Anda akan mengambil barang <strong>${namaBarang}</strong>.<br>Loker akan menjadi kosong kembali.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626', 
+                cancelButtonColor: '#181715',  
+                confirmButtonText: 'Ya, Ambil!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.submit(); 
+                }
+            });
+        });
+    });
 });
 </script>
 
