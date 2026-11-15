@@ -61,8 +61,8 @@ foreach ($pilihan_barang as $i => $pilihan) {
     }
 }
 
-if (count($daftar_barang) < 3) {
-    kembaliError("Minimal harus memasukkan 3 barang bawaan.", $gedung_asal);
+if (count($daftar_barang) < 2) {
+    kembaliError("Minimal harus memasukkan 2 barang bawaan.", $gedung_asal);
 }
 
 $barang_tercatat = [];

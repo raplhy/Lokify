@@ -143,7 +143,7 @@ include __DIR__ . '/header.php';
             <h2>Penitipan Barang - <?= htmlspecialchars($gedung); ?></h2>
         </div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-            <button type="button" class="btn btn-primary" onclick="bukaModalTambah()">Tambah Barang</button>
+            <button type="button" class="btn btn-primary" onclick="bukaModalTambah()">Titipan Barang</button>
         </div>
     </div>
 
@@ -295,7 +295,7 @@ include __DIR__ . '/header.php';
                         <?php else: ?>
                             <tr id="barisKosongPhp">
                                 <td colspan="9" style="text-align: center; padding: 35px; color: #6E6A63;">
-                                    Belum ada data barang. Silakan klik tombol <strong>Tambah Barang</strong>.
+                                    Belum ada data barang. Silakan klik tombol <strong>Titipan Barang</strong>.
                                 </td>
                             </tr>
                         <?php endif; ?>
@@ -308,7 +308,10 @@ include __DIR__ . '/header.php';
 
 <div class="modal-bg" id="modalTambahBarang">
     <div class="modal-box" style="width: 580px; max-width: 95%;">
-        <h3><i class="fa-solid fa-box-archive"></i> Form Titip Barang (<?= htmlspecialchars($gedung); ?>)</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;"><i class="fa-solid fa-box-archive"></i> Form Titip Barang (<?= htmlspecialchars($gedung); ?>)</h3>
+            <button type="button" onclick="tutupModalTambah()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #6E6A63; line-height: 1;">&times;</button>
+        </div>
         
         <form action="saveBarang.php" method="POST" enctype="multipart/form-data" id="formModalBarang">
             <input type="hidden" name="gedung_asal" value="<?= htmlspecialchars($gedung) ?>">
@@ -343,7 +346,7 @@ include __DIR__ . '/header.php';
             <div class="form-group">
                 <label>Daftar Barang Bawaan:</label>
                 <div id="daftarBarangModal">
-                    <?php for ($i = 1; $i <= 3; $i++): ?>
+                    <?php for ($i = 1; $i <= 2; $i++): ?>
                         <div class="barang-item-box">
                             <label>Barang <?= $i ?> (Wajib):</label>
                             <select name="pilihan_barang[]" class="form-control" onchange="ubahPilihan(this)" required>
@@ -357,11 +360,12 @@ include __DIR__ . '/header.php';
                         </div>
                     <?php endfor; ?>
                 </div>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="tambahBarang()">Tambah Barang</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="tambahBarang()">Titipan Barang</button>
             </div>
 
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="tutupModalTambah()">Batal</button>
+                <button type="button" class="btn btn-secondary" onclick="resetFormTambah()">Clear All</button>
                 <button type="submit" class="btn btn-primary">Simpan Data</button>
             </div>
         </form>
@@ -383,7 +387,45 @@ include __DIR__ . '/header.php';
 <script>
 const barangStandar = ["tas", "jaket", "helm", "laptop", "sepatu", "buku", "botol"];
 
+function resetFormTambah() {
+    const form = document.getElementById('formModalBarang');
+    if (form) form.reset();
+
+    const daftar = document.getElementById('daftarBarangModal');
+    if (daftar) {
+        const boxes = daftar.querySelectorAll('.barang-item-box');
+        boxes.forEach((box, index) => {
+            if (index >= 2) {
+                box.remove();
+            } else {
+                const select = box.querySelector('select');
+                const input = box.querySelector('.input-custom');
+                const pesan = box.querySelector('.pesan-error-custom');
+                if (select) select.value = '';
+                if (input) {
+                    input.value = '';
+                    input.style.display = 'none';
+                    input.required = false;
+                    input.style.borderColor = '';
+                }
+                if (pesan) {
+                    pesan.textContent = '';
+                    pesan.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    const selectLoker = document.getElementById('id_loker_modal');
+    if (selectLoker) selectLoker.value = '';
+    const inputFoto = document.getElementById('foto_barang_modal');
+    if (inputFoto) inputFoto.value = '';
+
+    updateDropdown();
+}
+
 function bukaModalTambah() {
+    resetFormTambah();
     const modal = document.getElementById('modalTambahBarang');
     if (modal) modal.style.display = 'flex';
 }
@@ -391,7 +433,30 @@ function bukaModalTambah() {
 function tutupModalTambah() {
     const modal = document.getElementById('modalTambahBarang');
     if (modal) modal.style.display = 'none';
+    resetFormTambah();
 }
+
+const modalTambahBarangEl = document.getElementById('modalTambahBarang');
+if (modalTambahBarangEl) {
+    modalTambahBarangEl.addEventListener('click', function(e) {
+        if (e.target === this) {
+            tutupModalTambah();
+        }
+    });
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modalTambahBarang');
+        if (modal && modal.style.display === 'flex') {
+            tutupModalTambah();
+        }
+        const modalFoto = document.getElementById('modalFotoPreview');
+        if (modalFoto && modalFoto.style.display === 'flex') {
+            tutupFotoModal();
+        }
+    }
+});
 
 function ubahPilihan(select) {
     const box = select.closest('.barang-item-box');
@@ -517,7 +582,7 @@ function hapusBarang(button) {
 
 function urutkanNomor() {
     document.querySelectorAll('#daftarBarangModal .judul-tambahan').forEach((label, index) => {
-        label.textContent = `Barang ${index + 4} (Tambahan):`;
+        label.textContent = `Barang ${index + 3} (Tambahan):`;
     });
 }
 

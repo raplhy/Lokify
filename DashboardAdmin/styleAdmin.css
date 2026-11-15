@@ -1354,3 +1354,30 @@ tr:hover td {
 .thumb-foto img:hover {
     transform: scale(1.08);
 }
+
+.barang-item-box {
+    background-color: #FAF8F5;
+    border: 1px solid #E8E3D9;
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+
+.input-custom {
+    display: none;
+    margin-top: 8px;
+}
+
+.pesan-error-custom {
+    color: #B8473E;
+    font-size: 11px;
+    display: none;
+    margin-top: 4px;
+    font-weight: bold;
+}
+
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

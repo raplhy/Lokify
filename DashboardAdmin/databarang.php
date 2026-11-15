@@ -114,10 +114,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_massal']
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin']) && $_POST['aksi_admin'] === 'tambah') {
     $id_siswa = (int)($_POST['id_siswa'] ?? 0);
     $id_loker = (int)($_POST['id_loker'] ?? 0);
-    $nama_barang = trim($_POST['nama_barang'] ?? '');
 
-    if (empty($id_siswa) || empty($id_loker) || empty($nama_barang)) {
-        header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Siswa, Loker, dan Nama Barang wajib diisi."));
+    if (empty($id_siswa) || empty($id_loker)) {
+        header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Siswa dan Loker wajib dipilih."));
         exit();
     }
 
@@ -127,9 +126,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
         exit();
     }
 
-    $cek_l = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE id_loker = $id_loker");
+    $cek_l = mysqli_query($koneksi, "SELECT id_loker, status FROM loker WHERE id_loker = $id_loker");
     if (!$cek_l || mysqli_num_rows($cek_l) === 0) {
         header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Loker yang dipilih tidak valid."));
+        exit();
+    }
+
+    $pilihan_barang = $_POST['pilihan_barang'] ?? [];
+    $custom_barang = $_POST['nama_barang_custom'] ?? [];
+    $daftar_barang_input = [];
+
+    foreach ($pilihan_barang as $i => $pilihan) {
+        $pilihan = trim($pilihan);
+        $custom = trim($custom_barang[$i] ?? '');
+        if ($pilihan === 'Lainnya') {
+            if ($custom === '') {
+                header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Nama barang wajib diisi jika memilih opsi 'Lainnya'."));
+                exit();
+            }
+            $daftar_barang_input[] = $custom;
+        } elseif ($pilihan !== '') {
+            $daftar_barang_input[] = $pilihan;
+        }
+    }
+
+    if (count($daftar_barang_input) < 2) {
+        header("Location: databarang.php?pesan=gagal_input&teks=" . urlencode("Minimal harus memasukkan 2 barang bawaan."));
         exit();
     }
 
@@ -146,17 +168,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
         }
     }
 
-    $nama_clean = mysqli_real_escape_string($koneksi, $nama_barang);
     $id_admin = dapatkanIdAdminAktif($koneksi);
 
-    mysqli_query($koneksi, "INSERT INTO barang (id_siswa, id_loker, nama_barang, foto_barang, waktu_penitipan, status, waktu_pengambilan)
-        VALUES ($id_siswa, $id_loker, '$nama_clean', '$nama_file_foto', NOW(), 'Tersimpan', NULL)");
-    $id_baru = mysqli_insert_id($koneksi);
+    foreach ($daftar_barang_input as $nama) {
+        $nama_clean = mysqli_real_escape_string($koneksi, $nama);
+        mysqli_query($koneksi, "INSERT INTO barang (id_siswa, id_loker, nama_barang, foto_barang, waktu_penitipan, status, waktu_pengambilan)
+            VALUES ($id_siswa, $id_loker, '$nama_clean', '$nama_file_foto', NOW(), 'Tersimpan', NULL)");
+        $id_baru = mysqli_insert_id($koneksi);
+        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_admin, 'Tambah', $id_baru, NOW())");
+    }
 
     perbaruiStatusLoker($koneksi, $id_loker);
-
-    mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-        VALUES ($id_admin, 'Tambah', $id_baru, NOW())");
 
     header("Location: databarang.php?pesan=sukses_tambah");
     exit();
@@ -436,7 +459,7 @@ if ($koneksi) {
                 </form>
 
                 <div style="display: flex; gap: 8px;">
-                    <button type="button" class="btn btn-primary" onclick="bukaModalTambah()">+ Tambah Barang</button>
+                    <button type="button" class="btn btn-primary" onclick="bukaModalTambah()">Titip Barang</button>
                 </div>
             </div>
 
@@ -561,12 +584,12 @@ if ($koneksi) {
 </div>
 
 <div class="modal-backdrop" id="modalTambah">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width: 600px;">
         <div class="modal-header">
-            <h3>+ Tambah Barang Titipan (Admin)</h3>
+            <h3> Titipan Barang </h3>
             <button type="button" class="modal-close" onclick="tutupModalTambah()">&times;</button>
         </div>
-        <form method="POST" action="databarang.php" enctype="multipart/form-data">
+        <form method="POST" action="databarang.php" enctype="multipart/form-data" id="formTambahAdmin">
             <input type="hidden" name="aksi_admin" value="tambah">
             <div class="modal-body">
                 <div class="form-row">
@@ -580,30 +603,44 @@ if ($koneksi) {
                         <?php endforeach; ?>
                     </select>
                 </div>
-                <div class="form-grid-2">
-                    <div class="form-row">
-                        <label for="tambah_loker">Loker Tujuan:</label>
-                        <select name="id_loker" id="tambah_loker" class="form-control" required>
-                            <option value="">Pilih Loker</option>
-                            <?php foreach ($daftar_loker_pilihan as $lk): ?>
-                                <option value="<?= $lk['id_loker'] ?>">
-                                    Loker <?= htmlspecialchars($lk['nomor_loker']) ?> - <?= htmlspecialchars($lk['nama_gedung'] ?? '') ?> (<?= $lk['status'] ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-row">
-                        <label for="tambah_nama">Nama Barang:</label>
-                        <input type="text" name="nama_barang" id="tambah_nama" class="form-control" placeholder="Contoh: Laptop Asus / Jaket Parka" required>
-                    </div>
+                <div class="form-row">
+                    <label for="tambah_loker">Loker Tujuan:</label>
+                    <select name="id_loker" id="tambah_loker" class="form-control" required>
+                        <option value="">Pilih Loker</option>
+                        <?php foreach ($daftar_loker_pilihan as $lk): ?>
+                            <option value="<?= $lk['id_loker'] ?>">
+                                Loker <?= htmlspecialchars($lk['nomor_loker']) ?> - <?= htmlspecialchars($lk['nama_gedung'] ?? '') ?> (<?= $lk['status'] ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="form-row">
                     <label for="tambah_foto">Foto Bukti Barang:</label>
-                    <input type="file" name="foto_barang" id="tambah_foto" class="form-control" accept="image/*">
+                    <input type="file" name="foto_barang" id="tambah_foto" class="form-control" accept="image/*" required>
+                </div>
+                <div class="form-row">
+                    <label>Daftar Barang Bawaan:</label>
+                    <div id="daftarBarangAdminModal">
+                        <?php for ($i = 1; $i <= 2; $i++): ?>
+                            <div class="barang-item-box">
+                                <label>Barang <?= $i ?> (Wajib):</label>
+                                <select name="pilihan_barang[]" class="form-control" onchange="ubahPilihanAdmin(this)" required>
+                                    <option value="">Pilih Barang</option>
+                                    <?php foreach (["Tas", "Jaket", "Helm", "Laptop", "Sepatu", "Buku", "Botol", "Lainnya"] as $b): ?>
+                                        <option value="<?= $b ?>"><?= $b ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <input type="text" name="nama_barang_custom[]" class="form-control input-custom" placeholder="Ketik nama barang..." oninput="validasiCustomAdmin(this)">
+                                <small class="pesan-error-custom" style="color: #B8473E; font-size: 11px; display: none; margin-top: 4px; font-weight: bold;"></small>
+                            </div>
+                        <?php endfor; ?>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="tambahBarangAdmin()">Titipan Barang</button>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="tutupModalTambah()">Batal</button>
+                <button type="button" class="btn btn-secondary" onclick="resetFormTambahAdmin()">Clear All</button>
                 <button type="submit" class="btn btn-primary">Simpan Barang</button>
             </div>
         </form>
@@ -787,12 +824,198 @@ function konfirmasiMassal(aksi) {
     return true;
 }
 
+var barangStandarAdmin = ["tas", "jaket", "helm", "laptop", "sepatu", "buku", "botol"];
+
+function resetFormTambahAdmin() {
+    var form = document.getElementById('formTambahAdmin');
+    if (form) form.reset();
+
+    var daftar = document.getElementById('daftarBarangAdminModal');
+    if (daftar) {
+        var boxes = daftar.querySelectorAll('.barang-item-box');
+        boxes.forEach(function(box, index) {
+            if (index >= 2) {
+                box.remove();
+            } else {
+                var select = box.querySelector('select');
+                var input = box.querySelector('.input-custom');
+                var pesan = box.querySelector('.pesan-error-custom');
+                if (select) select.value = '';
+                if (input) {
+                    input.value = '';
+                    input.style.display = 'none';
+                    input.required = false;
+                    input.style.borderColor = '';
+                }
+                if (pesan) {
+                    pesan.textContent = '';
+                    pesan.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    var selectSiswa = document.getElementById('tambah_siswa');
+    if (selectSiswa) selectSiswa.value = '';
+    var selectLoker = document.getElementById('tambah_loker');
+    if (selectLoker) selectLoker.value = '';
+    var inputFoto = document.getElementById('tambah_foto');
+    if (inputFoto) inputFoto.value = '';
+
+    updateDropdownAdmin();
+}
+
 function bukaModalTambah() {
+    resetFormTambahAdmin();
     document.getElementById('modalTambah').classList.add('aktif');
 }
 
 function tutupModalTambah() {
     document.getElementById('modalTambah').classList.remove('aktif');
+    resetFormTambahAdmin();
+}
+
+function ubahPilihanAdmin(select) {
+    var box = select.closest('.barang-item-box');
+    var input = box.querySelector('.input-custom');
+    var pesan = box.querySelector('.pesan-error-custom');
+
+    if (select.value === 'Lainnya') {
+        input.style.display = 'block';
+        input.required = true;
+        input.focus();
+        validasiCustomAdmin(input);
+    } else {
+        input.style.display = 'none';
+        input.required = false;
+        input.value = '';
+        input.style.borderColor = '';
+        pesan.style.display = 'none';
+    }
+
+    updateDropdownAdmin();
+}
+
+function updateDropdownAdmin() {
+    var semuaSelect = document.querySelectorAll('#daftarBarangAdminModal select[name="pilihan_barang[]"]');
+    var terpilih = [];
+
+    semuaSelect.forEach(function(select) {
+        if (select.value && select.value !== 'Lainnya') {
+            terpilih.push(select.value);
+        }
+    });
+
+    semuaSelect.forEach(function(select) {
+        Array.from(select.options).forEach(function(option) {
+            var sudahDipilih = terpilih.indexOf(option.value) !== -1;
+            option.disabled = sudahDipilih && option.value !== select.value;
+            option.hidden = option.disabled;
+        });
+    });
+}
+
+function validasiCustomAdmin(input) {
+    var box = input.closest('.barang-item-box');
+    var select = box.querySelector('select');
+    var pesan = box.querySelector('.pesan-error-custom');
+    var nama = input.value.trim();
+    var namaKecil = nama.toLowerCase();
+    var error = '';
+
+    if (select.value !== 'Lainnya') return true;
+
+    if (nama.length < 3 || nama.length > 50) {
+        error = 'Nama barang harus 3 sampai 50 karakter.';
+    } else if (!/^[a-zA-Z0-9\s-]+$/.test(nama)) {
+        error = 'Gunakan huruf, angka, spasi, dan tanda hubung (-).';
+    } else if ((nama.match(/[a-zA-Z]/g) || []).length < 3) {
+        error = 'Nama barang harus memiliki minimal 3 huruf.';
+    } else if (/(.)\1{2,}/i.test(nama)) {
+        error = 'Tidak boleh mengulang karakter 3 kali berturut-turut.';
+    }
+
+    if (!error) {
+        for (var i = 0; i < barangStandarAdmin.length; i++) {
+            if (namaKecil.indexOf(barangStandarAdmin[i]) !== -1) {
+                error = 'Nama barang sudah tersedia pada pilihan barang.';
+                break;
+            }
+        }
+    }
+
+    if (!error) {
+        document.querySelectorAll('#daftarBarangAdminModal .barang-item-box').forEach(function(item) {
+            if (item !== box) {
+                var inputLain = item.querySelector('.input-custom');
+                if (inputLain) {
+                    var namaLain = inputLain.value.trim().toLowerCase();
+                    if (namaLain && (namaKecil === namaLain || namaKecil.indexOf(namaLain) !== -1 || namaLain.indexOf(namaKecil) !== -1)) {
+                        error = 'Nama barang tidak boleh sama dengan barang lainnya.';
+                    }
+                }
+            }
+        });
+    }
+
+    input.style.borderColor = error ? '#B8473E' : '#181715';
+    pesan.textContent = error;
+    pesan.style.display = error ? 'block' : 'none';
+    return error === '';
+}
+
+function tambahBarangAdmin() {
+    var daftar = document.getElementById('daftarBarangAdminModal');
+    var box = daftar.firstElementChild.cloneNode(true);
+    var select = box.querySelector('select');
+    var input = box.querySelector('.input-custom');
+    var pesan = box.querySelector('.pesan-error-custom');
+
+    box.querySelector('label').outerHTML = `
+        <div class="toolbar" style="margin-bottom: 5px;">
+            <label class="judul-tambahan" style="margin: 0;"></label>
+            <button type="button" class="btn btn-danger btn-sm" onclick="hapusBarangAdmin(this)">Hapus</button>
+        </div>`;
+
+    select.value = '';
+    select.required = false;
+    select.options[0].text = 'Pilih Barang (Opsional)';
+    input.value = '';
+    input.style.display = 'none';
+    input.style.borderColor = '';
+    pesan.textContent = '';
+    pesan.style.display = 'none';
+
+    daftar.appendChild(box);
+    urutkanNomorAdmin();
+    updateDropdownAdmin();
+}
+
+function hapusBarangAdmin(button) {
+    button.closest('.barang-item-box').remove();
+    urutkanNomorAdmin();
+    updateDropdownAdmin();
+}
+
+function urutkanNomorAdmin() {
+    document.querySelectorAll('#daftarBarangAdminModal .judul-tambahan').forEach(function(label, index) {
+        label.textContent = 'Barang ' + (index + 3) + ' (Tambahan):';
+    });
+}
+
+var formTambahAdminEl = document.getElementById('formTambahAdmin');
+if (formTambahAdminEl) {
+    formTambahAdminEl.addEventListener('submit', function(e) {
+        var inputs = formTambahAdminEl.querySelectorAll('.input-custom');
+        for (var i = 0; i < inputs.length; i++) {
+            if (!validasiCustomAdmin(inputs[i])) {
+                e.preventDefault();
+                inputs[i].focus();
+                alert('Periksa kembali nama barang yang diisi.');
+                return;
+            }
+        }
+    });
 }
 
 function bukaModalEdit(data) {
@@ -828,6 +1051,39 @@ function bukaModalFoto(src, caption) {
 function tutupModalFoto() {
     document.getElementById('modalFoto').classList.remove('aktif');
 }
+
+var modalTambahEl = document.getElementById('modalTambah');
+if (modalTambahEl) {
+    modalTambahEl.addEventListener('click', function(e) {
+        if (e.target === this) {
+            tutupModalTambah();
+        }
+    });
+}
+
+var modalEditEl = document.getElementById('modalEdit');
+if (modalEditEl) {
+    modalEditEl.addEventListener('click', function(e) {
+        if (e.target === this) {
+            tutupModalEdit();
+        }
+    });
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        if (modalTambahEl && modalTambahEl.classList.contains('aktif')) {
+            tutupModalTambah();
+        }
+        if (modalEditEl && modalEditEl.classList.contains('aktif')) {
+            tutupModalEdit();
+        }
+        var modalFoto = document.getElementById('modalFoto');
+        if (modalFoto && modalFoto.classList.contains('aktif')) {
+            tutupModalFoto();
+        }
+    }
+});
 </script>
 
 </body>
