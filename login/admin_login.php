@@ -4,7 +4,7 @@ require_once __DIR__ . '/functions.php';
 
 // Kalau sudah login sebagai admin, langsung ke dashboard admin
 if (is_admin()) {
-    redirect('../DashboardAdmin/index.php');
+    redirect('../Dashboa rdAdmin/index.php');
 }
 
 $error_msg = get_flash('error');
