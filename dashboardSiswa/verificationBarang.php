@@ -1,63 +1,85 @@
 <?php
-require_once "connectBarang.php";
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+require_once __DIR__ . "/koneksi.php";
 
+if (!isset($_SESSION['id_user']) || $_SESSION['role'] !== 'siswa') {
+    header("Location: ../login/login.php");
+    exit();
+}
+
+$id_user = (int)$_SESSION['id_user'];
 $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
+$gedung_asal = $_POST['gedung_asal'] ?? $_GET['gedung'] ?? 'Gedung A';
 
-$query = mysqli_query($koneksi, "SELECT b.*, u.nama_lengkap AS nama_siswa, u.username AS nis_siswa,
-        l.nomor_loker, g.nama_gedung AS lokasi
+$query = mysqli_query($koneksi, "
+    SELECT b.*, u.nama_lengkap AS nama_siswa, u.username AS nis_siswa,
+           l.nomor_loker, g.nama_gedung AS lokasi
     FROM barang b
     LEFT JOIN users u ON b.id_siswa = u.id_user
     LEFT JOIN loker l ON b.id_loker = l.id_loker
     LEFT JOIN gedung g ON l.id_gedung = g.id_gedung
-    WHERE b.id_barang = '$id'");
+    WHERE b.id_barang = '$id'
+");
 $barang = mysqli_fetch_assoc($query);
 
 if (!$barang) {
-    header("Location: indexBarang.php");
+    header("Location: indexBarang.php?gedung=" . urlencode($gedung_asal));
     exit();
 }
 
-if (($_SESSION['role'] ?? '') === 'siswa' && (int)$barang['id_siswa'] !== (int)($_SESSION['id_user'] ?? 0)) {
-    header("Location: indexBarang.php?pesan=akses_ditolak");
+if ((int)$barang['id_siswa'] !== $id_user) {
+    header("Location: indexBarang.php?gedung=" . urlencode($gedung_asal) . "&pesan=akses_ditolak");
     exit();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['konfirmasi_ambil'])) {
+if (!empty($barang['lokasi'])) {
+    $gedung_asal = $barang['lokasi'];
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['konfirmasi_ambil'])) {
     if ($barang['status'] === 'Tersimpan') {
         $id_loker = (int)$barang['id_loker'];
 
-        mysqli_query($koneksi, "UPDATE barang SET status = 'Sudah diambil', waktu_pengambilan = NOW()
-            WHERE id_barang = '$id'");
+        mysqli_query($koneksi, "
+            UPDATE barang 
+            SET status = 'Sudah diambil', waktu_pengambilan = NOW()
+            WHERE id_barang = '$id' AND id_siswa = '$id_user'
+        ");
 
         $id_aktor = dapatkanIdUserAktif($koneksi, 'admin');
 
-        mysqli_query($koneksi, "INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
-            VALUES ($id_aktor, 'Ubah', '$id', NOW())");
+        mysqli_query($koneksi, "
+            INSERT INTO log_aktivitas (id_admin, aksi, id_barang_terkait, waktu)
+            VALUES ($id_aktor, 'Ubah', '$id', NOW())
+        ");
 
         perbaruiStatusLoker($koneksi, $id_loker);
     }
 
-    header("Location: indexBarang.php?pesan=sukses_ambil");
+    header("Location: indexBarang.php?gedung=" . urlencode($gedung_asal) . "&pesan=sukses_ambil");
     exit();
 }
 
+$query_user = mysqli_query($koneksi, "SELECT * FROM users WHERE id_user = '$id_user'");
+$data_user = mysqli_fetch_assoc($query_user);
+$nama_lengkap = $data_user['nama_lengkap'] ?? 'Siswa';
+$role = $_SESSION['role'];
+$inisial = strtoupper(substr(trim($nama_lengkap), 0, 1));
+$foto_user = $data_user['foto'] ?? '';
+$page_title = 'Verifikasi Barang';
+
 $path_foto = 'uploads/' . $barang['foto_barang'];
-$ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
+$ada_foto = !empty($barang['foto_barang']) && file_exists(__DIR__ . '/' . $path_foto);
+
+include __DIR__ . '/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verifikasi Barang</title>
-    <link rel="stylesheet" href="styleBarang.css">
-</head>
-<body>
 
 <div class="container">
     <div class="header-box">
         <h2>Verifikasi & Pengambilan Barang</h2>
-        <a href="indexBarang.php" class="btn btn-secondary">Kembali</a>
+        <a href="indexBarang.php?gedung=<?= urlencode($gedung_asal) ?>" class="btn btn-secondary">Kembali</a>
     </div>
 
     <div class="card">
@@ -110,15 +132,16 @@ $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
                     <?php if ($barang['status'] === 'Tersimpan'): ?>
                         <form action="verificationBarang.php" method="POST" onsubmit="return confirm('Apakah Anda yakin barang ini sudah diambil oleh siswa?')">
                             <input type="hidden" name="id" value="<?= $barang['id_barang'] ?>">
+                            <input type="hidden" name="gedung_asal" value="<?= htmlspecialchars($gedung_asal) ?>">
                             <button type="submit" name="konfirmasi_ambil" value="1" class="btn btn-success">Ambil Barang</button>
-                            <a href="indexBarang.php" class="btn btn-secondary">Batal</a>
+                            <a href="indexBarang.php?gedung=<?= urlencode($gedung_asal) ?>" class="btn btn-secondary">Batal</a>
                         </form>
                     <?php else: ?>
                         <p style="color: #1E1D1B; font-weight: bold; font-size: 13px;">
                             Barang ini sudah diambil pada <?= date('d/m/Y H:i', strtotime($barang['waktu_pengambilan'])) ?> WIB.
                         </p>
                         <div style="margin-top: 10px;">
-                            <a href="indexBarang.php" class="btn btn-secondary">Kembali</a>
+                            <a href="indexBarang.php?gedung=<?= urlencode($gedung_asal) ?>" class="btn btn-secondary">Kembali</a>
                         </div>
                     <?php endif; ?>
                 </div>
@@ -127,5 +150,4 @@ $ada_foto = !empty($barang['foto_barang']) && file_exists($path_foto);
     </div>
 </div>
 
-</body>
-</html>
+<?php include __DIR__ . '/footer.php'; ?>

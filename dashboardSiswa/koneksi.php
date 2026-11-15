@@ -3,16 +3,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$host = "localhost";
-$user = "root";
-$password = "";
-$database = "db_kel1";
-
-$koneksi = mysqli_connect($host, $user, $password, $database);
-
-if (!$koneksi) {
-    die("Koneksi database gagal: " . mysqli_connect_error());
-}
+require_once __DIR__ . '/../login/koneksi.php';
 
 if (!function_exists('perbaruiStatusLoker')) {
     function perbaruiStatusLoker($koneksi, $id_loker) {
@@ -34,7 +25,7 @@ if (!function_exists('perbaruiStatusLoker')) {
 }
 
 if (!function_exists('dapatkanIdUserAktif')) {
-    function dapatkanIdUserAktif($koneksi, $fallback_role = 'admin') {
+    function dapatkanIdUserAktif($koneksi, $fallback_role = 'siswa') {
         $id = (int)($_SESSION['id_user'] ?? 0);
         if ($id > 0 && isset($koneksi) && $koneksi) {
             $cek = mysqli_query($koneksi, "SELECT id_user FROM users WHERE id_user = $id");

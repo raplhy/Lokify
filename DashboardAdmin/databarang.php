@@ -42,7 +42,7 @@ if (isset($_GET['aksi']) && $_GET['aksi'] === 'hapus') {
 
             if (!empty($foto)) {
                 $paths = [
-                    __DIR__ . "/../DataBarang/uploads/" . $foto,
+                    __DIR__ . "/../dashboardSiswa/uploads/" . $foto,
                     __DIR__ . "/uploads/" . $foto
                 ];
                 foreach ($paths as $p) {
@@ -92,7 +92,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_massal']
         while ($rf = mysqli_fetch_assoc($qFoto)) {
             $f = $rf['foto_barang'] ?? '';
             if (!empty($f)) {
-                $p1 = __DIR__ . "/../DataBarang/uploads/" . $f;
+                $p1 = __DIR__ . "/../dashboardSiswa/uploads/" . $f;
                 $p2 = __DIR__ . "/uploads/" . $f;
                 if (file_exists($p1)) @unlink($p1);
                 if (file_exists($p2)) @unlink($p2);
@@ -139,7 +139,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
         $ext = strtolower(pathinfo($_FILES['foto_barang']['name'], PATHINFO_EXTENSION));
         $ext_boleh = ['jpg', 'jpeg', 'png', 'webp'];
         if (in_array($ext, $ext_boleh)) {
-            $target_dir = __DIR__ . "/../DataBarang/uploads/";
+            $target_dir = __DIR__ . "/../dashboardSiswa/uploads/";
             if (!is_dir($target_dir)) @mkdir($target_dir, 0777, true);
             $nama_file_foto = 'foto_' . time() . '_' . rand(100, 999) . '.' . $ext;
             @move_uploaded_file($file_tmp, $target_dir . $nama_file_foto);
@@ -190,7 +190,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && isset($_POST['aksi_admin'])
             $ext = strtolower(pathinfo($_FILES['foto_barang']['name'], PATHINFO_EXTENSION));
             $ext_boleh = ['jpg', 'jpeg', 'png', 'webp'];
             if (in_array($ext, $ext_boleh)) {
-                $target_dir = __DIR__ . "/../DataBarang/uploads/";
+                $target_dir = __DIR__ . "/../dashboardSiswa/uploads/";
                 if (!is_dir($target_dir)) @mkdir($target_dir, 0777, true);
                 $nama_file_foto = 'foto_' . time() . '_' . rand(100, 999) . '.' . $ext;
                 if (@move_uploaded_file($file_tmp, $target_dir . $nama_file_foto)) {
@@ -490,7 +490,7 @@ if ($koneksi) {
                                         $foto = $b['foto_barang'] ?? '';
                                         $path_foto = '';
                                         if ($foto !== '') {
-                                            if (file_exists(__DIR__ . "/../DataBarang/uploads/$foto")) $path_foto = "../DataBarang/uploads/$foto";
+                                            if (file_exists(__DIR__ . "/../dashboardSiswa/uploads/$foto")) $path_foto = "../dashboardSiswa/uploads/$foto";
                                             elseif (file_exists(__DIR__ . "/uploads/$foto")) $path_foto = "uploads/$foto";
                                         }
                                         $json_b = htmlspecialchars(json_encode([

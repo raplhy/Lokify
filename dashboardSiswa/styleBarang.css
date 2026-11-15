@@ -1,18 +1,6 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: Arial, Helvetica, sans-serif;
-}
-
-body {
-    background-color: #F4EFE6;
-    color: #1E1D1B;
-    padding: 24px 20px;
-}
-
 .container {
-    max-width: 980px;
+    width: 100%;
+    max-width: 100%;
     margin: 0 auto;
 }
 
@@ -74,6 +62,7 @@ body {
     background-color: #FFFFFF;
     color: #1E1D1B;
     outline: none;
+    box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -107,7 +96,9 @@ body {
 }
 
 .btn {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 16px;
     border-radius: 6px;
     font-size: 13px;
@@ -115,6 +106,10 @@ body {
     text-decoration: none;
     border: 1px solid transparent;
     cursor: pointer;
+    line-height: normal;
+    transition: all 0.2s;
+    outline: none;
+    box-sizing: border-box;
 }
 
 .btn-sm {
@@ -124,9 +119,22 @@ body {
 
 .btn-primary,
 .btn-success {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
+    border: 1px solid #181715;
     background-color: #181715;
     color: #FFFFFF;
-    border-color: #181715;
+    cursor: pointer;
+    line-height: normal;
+    transition: all 0.2s;
+    outline: none;
+    box-sizing: border-box;
 }
 
 .btn-primary:hover,
@@ -136,9 +144,22 @@ body {
 }
 
 .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
     background-color: #EFECE4;
     color: #1E1D1B;
-    border-color: #D8D2C7;
+    border: 1px solid #D8D2C7;
+    cursor: pointer;
+    line-height: normal;
+    transition: all 0.2s;
+    outline: none;
+    box-sizing: border-box;
 }
 
 .btn-secondary:hover {
@@ -146,9 +167,22 @@ body {
 }
 
 .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    text-decoration: none;
     background-color: #B8473E;
     color: #FFFFFF;
-    border-color: #B8473E;
+    border: 1px solid #B8473E;
+    cursor: pointer;
+    line-height: normal;
+    transition: all 0.2s;
+    outline: none;
+    box-sizing: border-box;
 }
 
 .btn-danger:hover {

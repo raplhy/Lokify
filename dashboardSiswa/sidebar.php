@@ -6,7 +6,6 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
 
 <aside class="sidebar" id="app-sidebar">
 
-    <!-- BRAND + LOGO -->
     <div class="sidebar-brand">
         <img src="logoLOKIFY.png" alt="LOKIFY" class="brand-logo" onerror="this.style.display='none'">
         <div class="brand-text">
@@ -20,22 +19,22 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
             <div class="nav-section-title">UTAMA</div>
 
             <div class="nav-item-dropdown">
-                <a href="javascript:void(0)" class="nav-link" id="toggle-dashboard" title="Dashboard Siswa">
+                <a href="javascript:void(0)" class="nav-link active" id="toggle-dashboard" title="Dashboard Siswa">
                     <i class="fa-solid fa-gauge-high"></i>
                     <span class="nav-text">Dashboard Siswa</span>
-                    <i class="fa-solid fa-chevron-down nav-arrow" id="arrow-dashboard"></i>
+                    <i class="fa-solid fa-chevron-down nav-arrow rotate" id="arrow-dashboard"></i>
                 </a>
                 <div class="nav-submenu" id="submenu-dashboard">
-                    <a href="dashboard.php?gedung=Gedung A" class="nav-sublink <?php echo ($current_gedung === 'Gedung A') ? 'active' : ''; ?>">
+                    <a href="indexBarang.php?gedung=Gedung A" class="nav-sublink <?= ($current_gedung === 'Gedung A') ? 'active' : ''; ?>">
                         <i class="fa-solid fa-building"></i> <span class="nav-text">Gedung A</span>
                     </a>
-                    <a href="dashboard.php?gedung=Gedung B" class="nav-sublink <?php echo ($current_gedung === 'Gedung B') ? 'active' : ''; ?>">
+                    <a href="indexBarang.php?gedung=Gedung B" class="nav-sublink <?= ($current_gedung === 'Gedung B') ? 'active' : ''; ?>">
                         <i class="fa-solid fa-building"></i> <span class="nav-text">Gedung B</span>
                     </a>
-                    <a href="dashboard.php?gedung=Gedung C" class="nav-sublink <?php echo ($current_gedung === 'Gedung C') ? 'active' : ''; ?>">
+                    <a href="indexBarang.php?gedung=Gedung C" class="nav-sublink <?= ($current_gedung === 'Gedung C') ? 'active' : ''; ?>">
                         <i class="fa-solid fa-building"></i> <span class="nav-text">Gedung C</span>
                     </a>
-                    <a href="dashboard.php?gedung=Gedung D" class="nav-sublink <?php echo ($current_gedung === 'Gedung D') ? 'active' : ''; ?>">
+                    <a href="indexBarang.php?gedung=Gedung D" class="nav-sublink <?= ($current_gedung === 'Gedung D') ? 'active' : ''; ?>">
                         <i class="fa-solid fa-building"></i> <span class="nav-text">Gedung D</span>
                     </a>
                 </div>
@@ -65,7 +64,6 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
 </aside>
 
 <style>
-/* ====== SIDEBAR UTAMA (TEMA CREAM/ABU RAFFA) ====== */
 .sidebar {
     width: 260px;
     min-height: 100vh;
@@ -81,7 +79,6 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
     z-index: 10;
 }
 
-/* ====== BRAND / LOGO ====== */
 .sidebar-brand {
     display: flex;
     align-items: center;
@@ -111,7 +108,6 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
 
 .brand-text span { color: #C85A17; }
 
-/* ====== NAV ====== */
 .sidebar-nav {
     flex: 1;
     padding: 15px 0;
@@ -228,9 +224,6 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
     white-space: nowrap;
 }
 
-/* ==========================================================
-   MODE COLLAPSED — HANYA LOGO + IKON
-   ========================================================== */
 .sidebar.collapsed {
     width: 72px;
 }
@@ -277,60 +270,23 @@ $kode_gedung = strtoupper(str_replace('Gedung', '', trim($current_gedung)));
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-
     const sidebar = document.getElementById('app-sidebar');
     const toggleDashboard = document.getElementById('toggle-dashboard');
     const submenu = document.getElementById('submenu-dashboard');
     const arrow = document.getElementById('arrow-dashboard');
 
-    /* ===== Default: submenu terbuka ===== */
-    arrow.classList.add('rotate');
-
-    /* ===== Klik menu "Dashboard Siswa" ===== */
-    toggleDashboard.addEventListener('click', function () {
-        if (sidebar.classList.contains('collapsed')) {
-            sidebar.classList.remove('collapsed');
-            return;
-        }
-        submenu.classList.toggle('hidden');
-        arrow.classList.toggle('rotate');
-    });
-
-    /* ==========================================================
-       CARI TOMBOL HAMBURGER DI HEADER (GARIS 3)
-       ========================================================== */
-    const selectors = [
-        '.hamburger-btn',
-        '#toggle-sidebar',
-        '[data-toggle="sidebar"]',
-        '.menu-toggle',
-        '.sidebar-toggle',
-        '.burger-menu'
-    ];
-
-    let hamburger = null;
-    for (let sel of selectors) {
-        hamburger = document.querySelector(sel);
-        if (hamburger) break;
-    }
-
-    // Kalau belum ketemu, cari lewat ikon fa-bars / fa-bars-staggered
-    if (!hamburger) {
-        const icon = document.querySelector('.fa-bars, .fa-bars-staggered, .fa-align-left');
-        if (icon) {
-            hamburger = icon.closest('button') || icon.closest('a') || icon.parentElement;
-        }
-    }
-
-    // Pasang listener kalau ketemu
-    if (hamburger) {
-        hamburger.addEventListener('click', function (e) {
+    if (toggleDashboard && submenu && arrow) {
+        toggleDashboard.addEventListener('click', function (e) {
             e.preventDefault();
-            e.stopPropagation();
-            sidebar.classList.toggle('collapsed');
+            if (sidebar && sidebar.classList.contains('collapsed')) {
+                sidebar.classList.remove('collapsed');
+                submenu.classList.remove('hidden');
+                arrow.classList.add('rotate');
+                return;
+            }
+            submenu.classList.toggle('hidden');
+            arrow.classList.toggle('rotate');
         });
-    } else {
-        console.warn('⚠️ Tombol hamburger TIDAK DITEMUKAN. Cek header.php — pastikan tombol ☰ punya class/id yang benar.');
     }
 });
 </script>

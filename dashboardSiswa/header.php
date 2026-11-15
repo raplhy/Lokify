@@ -1,5 +1,9 @@
 <?php
-$page_title = $page_title ?? 'Dashboard';
+$page_title = $page_title ?? 'Dashboard Siswa';
+$role = $role ?? $_SESSION['role'] ?? 'siswa';
+$nama_lengkap = $nama_lengkap ?? $_SESSION['nama_lengkap'] ?? 'Siswa';
+$inisial = $inisial ?? strtoupper(substr(trim($nama_lengkap), 0, 1));
+$foto_user = $foto_user ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -11,10 +15,17 @@ $page_title = $page_title ?? 'Dashboard';
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="styleBarang.css">
     
-    <!-- TAMBAHAN: Script SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById('app-sidebar');
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+        }
+    }
+
     function konfirmasiLogoutSiswa() {
         Swal.fire({
             title: 'Apakah Anda yakin?',
@@ -22,7 +33,7 @@ $page_title = $page_title ?? 'Dashboard';
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#E04F16',
-            cancelButtonColor: '#181715', /* DIUBAH: Warna Batal jadi hitam seperti Titip Barang */
+            cancelButtonColor: '#181715',
             confirmButtonText: 'Ya, Keluar!',
             cancelButtonText: 'Batal'
         }).then((result) => {
@@ -32,7 +43,6 @@ $page_title = $page_title ?? 'Dashboard';
         });
     }
     </script>
-    <!-- AKHIR TAMBAHAN -->
 
     <style>
     * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', 'Roboto', sans-serif; }
@@ -51,7 +61,6 @@ $page_title = $page_title ?? 'Dashboard';
 
     body { background-color: var(--bg-main); color: var(--text-main); display: flex; min-height: 100vh; }
 
-    /* MAIN */
     .main-wrapper { flex: 1; display: flex; flex-direction: column; min-width: 0; }
     
     .top-header { 
@@ -77,7 +86,6 @@ $page_title = $page_title ?? 'Dashboard';
     }
     .btn-toggle-sidebar:hover { background-color: #EFE5D8; }
 
-    /* PROFILE */
     .profile-dropdown-container { position: relative; }
     
     .profile-btn { 
@@ -138,67 +146,8 @@ $page_title = $page_title ?? 'Dashboard';
     .dropdown-item.logout-item { color: #B8473E; font-weight: 600; border-top: 1px solid var(--border-color); }
     .dropdown-item.logout-item:hover { background: #F9E2DF; }
 
-    /* CONTENT */
     .content-area { padding: 25px 30px; }
-    
-    .stats-row { display: flex; gap: 20px; margin-bottom: 25px; flex-wrap: wrap; }
-    .stat-card { 
-        flex: 1; 
-        min-width: 200px; 
-        background: var(--card-bg); 
-        border: 1px solid var(--border-color); 
-        border-radius: 8px; 
-        padding: 18px; 
-        display: flex; 
-        align-items: center; 
-        gap: 15px; 
-    }
-    .stat-icon { 
-        width: 45px; 
-        height: 45px; 
-        border-radius: 6px; 
-        background: #FAF8F5; 
-        border: 1px solid var(--border-color); 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        font-size: 18px; 
-        color: var(--text-main); 
-        flex-shrink: 0; 
-    }
-    .stat-data h4 { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-    .stat-data h2 { font-size: 22px; font-weight: 800; color: var(--text-main); }
 
-    .panel { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; }
-    .panel-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
-    .panel-title { font-size: 14px; font-weight: 700; color: var(--text-main); text-transform: uppercase; }
-
-    .btn-primary { 
-        background: #181715; 
-        color: #FFFFFF; 
-        border: 1px solid #181715; 
-        padding: 9px 16px; 
-        border-radius: 6px; 
-        font-size: 13px; 
-        font-weight: bold; 
-        cursor: pointer; 
-        display: inline-flex; 
-        align-items: center; 
-        gap: 8px; 
-        text-decoration: none; 
-        transition: all 0.2s;
-    }
-    .btn-primary:hover { background: var(--accent-color); border-color: var(--accent-color); }
-    
-    .search-box { display: flex; gap: 8px; align-items: center; }
-    .search-input { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; outline: none; background: #FAF8F5; }
-    .search-input:focus { border-color: var(--accent-color); background: #FFF; }
-
-    .table-custom { width: 100%; border-collapse: collapse; }
-    .table-custom th { background: #FAF8F5; padding: 12px 20px; text-align: left; font-size: 12px; font-weight: bold; color: var(--text-muted); text-transform: uppercase; border-bottom: 1px solid var(--border-color); }
-    .table-custom td { padding: 12px 20px; font-size: 13px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
-
-    /* MODAL */
     .modal-bg { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 99; }
     .modal-box { background: #FFFFFF; width: 450px; max-width: 90%; border-radius: 8px; padding: 20px; border: 1px solid var(--border-color); max-height: 90vh; overflow-y: auto; }
     .modal-box.modal-large { width: 800px; }
@@ -209,17 +158,47 @@ $page_title = $page_title ?? 'Dashboard';
     .form-input { width: 100%; padding: 9px 12px; border: 1px solid #D8D2C7; border-radius: 6px; font-size: 13px; outline: none; background: #FFF; color: var(--text-main); }
     .form-input:focus { border-color: var(--accent-color); }
     
-    .loker-info-box { background: #FAF8F5; border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; max-height: 90px; overflow-y: auto; }
-    .modal-footer { margin-top: 18px; display: flex; justify-content: flex-end; gap: 8px; }
+    .modal-footer { margin-top: 18px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
     
-    .btn-secondary { background: #EFECE4; color: var(--text-main); border: 1px solid #D8D2C7; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; }
+    .btn-primary { 
+        background: #181715; 
+        color: #FFFFFF; 
+        border: 1px solid #181715; 
+        padding: 8px 16px; 
+        border-radius: 6px; 
+        font-size: 13px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        display: inline-flex; 
+        align-items: center; 
+        justify-content: center;
+        gap: 8px; 
+        text-decoration: none; 
+        transition: all 0.2s;
+        outline: none;
+    }
+    .btn-primary:hover { background: var(--accent-color); border-color: var(--accent-color); }
+
+    .btn-secondary { 
+        background: #EFECE4; 
+        color: var(--text-main); 
+        border: 1px solid #D8D2C7; 
+        padding: 8px 16px; 
+        border-radius: 6px; 
+        font-size: 13px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        transition: all 0.2s;
+        outline: none;
+    }
     .btn-secondary:hover { background: #EFE5D8; }
 
-    /* RESPONSIVE */
     @media (max-width: 768px) {
         .main-wrapper { margin-left: 0 !important; }
-        .stats-row { flex-direction: column; }
-        .stat-card { min-width: 100%; }
         .modal-box, .modal-box.modal-large { width: 95% !important; }
         .content-area { padding: 15px; }
         .top-header { padding: 10px 15px; }

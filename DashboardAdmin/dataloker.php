@@ -8,92 +8,113 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $halaman_aktif = 'dataloker';
 $nama_admin    = $_SESSION['nama_lengkap'] ?? 'Administrator';
+$tanggal_hari_ini = tanggalIndonesia();
 
-/* =========================================================
-   TANGGAL (sama seperti dataloker lama)
-   ========================================================= */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['simpan'])) {
+    $nomor_loker = trim(mysqli_real_escape_string($koneksi, $_POST['nomor_loker'] ?? ''));
+    $lokasi = (int)($_POST['id_gedung'] ?? 0);
 
-$daftar_hari = [
-    'Sunday'    => 'Minggu',
-    'Monday'    => 'Senin',
-    'Tuesday'   => 'Selasa',
-    'Wednesday' => 'Rabu',
-    'Thursday'  => 'Kamis',
-    'Friday'    => 'Jumat',
-    'Saturday'  => 'Sabtu'
-];
+    if (empty($nomor_loker) || $lokasi <= 0) {
+        header("Location: dataloker.php?pesan=kosong");
+        exit();
+    }
 
-$daftar_bulan = [
-    1  => 'Januari',
-    2  => 'Februari',
-    3  => 'Maret',
-    4  => 'April',
-    5  => 'Mei',
-    6  => 'Juni',
-    7  => 'Juli',
-    8  => 'Agustus',
-    9  => 'September',
-    10 => 'Oktober',
-    11 => 'November',
-    12 => 'Desember'
-];
+    $cek_gedung = mysqli_query($koneksi, "SELECT id_gedung FROM gedung WHERE id_gedung = $lokasi");
+    if (mysqli_num_rows($cek_gedung) == 0) {
+        header("Location: dataloker.php");
+        exit();
+    }
 
-$hari_ini         = $daftar_hari[date('l')] ?? date('l');
-$tgl              = (int)date('d');
-$bln              = $daftar_bulan[(int)date('m')] ?? date('F');
-$thn              = date('Y');
-$tanggal_hari_ini = "$hari_ini, $tgl $bln $thn";
+    $cek = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE nomor_loker = '$nomor_loker'");
+    if (mysqli_num_rows($cek) > 0) {
+        header("Location: dataloker.php?pesan=duplikat");
+        exit();
+    }
 
-
-/* =========================================================
-   DATA LOKER + DATA GEDUNG
-   ========================================================= */
-
-/*
- * Filter gedung (0 = semua gedung)
- *
- * Link "Lihat" di beranda.php mengirim NAMA gedung
- * (dataloker.php?gedung=Gedung A), sedangkan dropdown filter
- * mengirim ID gedung. Keduanya didukung di sini supaya
- * beranda.php tidak perlu diubah.
- */
-$gedung_get = trim($_GET['gedung'] ?? '');
-
-if ($gedung_get !== '' && !ctype_digit($gedung_get)) {
-
-    $gedung_aman = mysqli_real_escape_string($koneksi, $gedung_get);
-
-    $cek_gedung = mysqli_fetch_assoc(
-        mysqli_query(
-            $koneksi,
-            "SELECT id_gedung FROM gedung WHERE nama_gedung = '$gedung_aman' LIMIT 1"
-        )
-    );
-
-    $filter_gedung = (int) ($cek_gedung['id_gedung'] ?? 0);
-
-} else {
-
-    $filter_gedung = (int) $gedung_get;
-
+    $simpan = mysqli_query($koneksi, "INSERT INTO loker (nomor_loker, id_gedung, status) VALUES ('$nomor_loker', $lokasi, 'Kosong')");
+    if ($simpan) {
+        header("Location: dataloker.php?pesan=tambah");
+        exit();
+    } else {
+        header("Location: dataloker.php?pesan=gagal");
+        exit();
+    }
 }
 
-/* Pencarian kode loker */
-$cari = trim($_GET['cari'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit'])) {
+    $id_loker = (int)($_POST['id_loker'] ?? 0);
+    $nomor_loker = trim(mysqli_real_escape_string($koneksi, $_POST['nomor_loker'] ?? ''));
+    $lokasi = (int)($_POST['id_gedung'] ?? 0);
 
+    if ($id_loker <= 0 || empty($nomor_loker) || $lokasi <= 0) {
+        header("Location: dataloker.php?pesan=kosong");
+        exit();
+    }
+
+    $cek_gedung = mysqli_query($koneksi, "SELECT id_gedung FROM gedung WHERE id_gedung = $lokasi");
+    if (mysqli_num_rows($cek_gedung) == 0) {
+        header("Location: dataloker.php");
+        exit();
+    }
+
+    $cek = mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE nomor_loker = '$nomor_loker' AND id_loker != $id_loker");
+    if (mysqli_num_rows($cek) > 0) {
+        header("Location: dataloker.php?pesan=duplikat");
+        exit();
+    }
+
+    $update = mysqli_query($koneksi, "UPDATE loker SET nomor_loker = '$nomor_loker', id_gedung = $lokasi WHERE id_loker = $id_loker");
+    if ($update) {
+        header("Location: dataloker.php?pesan=edit");
+        exit();
+    } else {
+        header("Location: dataloker.php?pesan=gagal");
+        exit();
+    }
+}
+
+if (isset($_GET['aksi']) && $_GET['aksi'] === 'hapus' && isset($_GET['id_loker'])) {
+    $id = (int)$_GET['id_loker'];
+    if ($id > 0) {
+        $cek_loker = mysqli_query($koneksi, "SELECT status FROM loker WHERE id_loker = $id");
+        $data_loker = mysqli_fetch_assoc($cek_loker);
+        if ($data_loker && $data_loker['status'] !== 'Kosong') {
+            header("Location: dataloker.php?pesan=terisi");
+            exit();
+        }
+
+        $hapus = mysqli_query($koneksi, "DELETE FROM loker WHERE id_loker = $id");
+        if ($hapus) {
+            header("Location: dataloker.php?pesan=hapus");
+            exit();
+        } else {
+            header("Location: dataloker.php?pesan=gagal");
+            exit();
+        }
+    }
+    header("Location: dataloker.php");
+    exit();
+}
+
+$gedung_get = trim($_GET['gedung'] ?? '');
+if ($gedung_get !== '' && !ctype_digit($gedung_get)) {
+    $gedung_aman = mysqli_real_escape_string($koneksi, $gedung_get);
+    $cek_gedung = mysqli_fetch_assoc(mysqli_query($koneksi, "SELECT id_gedung FROM gedung WHERE nama_gedung = '$gedung_aman' LIMIT 1"));
+    $filter_gedung = (int)($cek_gedung['id_gedung'] ?? 0);
+} else {
+    $filter_gedung = (int)$gedung_get;
+}
+
+$cari = trim($_GET['cari'] ?? '');
 $cari_aman = mysqli_real_escape_string($koneksi, $cari);
 
-/* Gabungkan filter gedung + pencarian */
 $kondisi = [];
-
 if ($filter_gedung) {
     $kondisi[] = "loker.id_gedung = $filter_gedung";
 }
-
 if ($cari !== '') {
     $kondisi[] = "loker.nomor_loker LIKE '%$cari_aman%'";
 }
-
 $where = $kondisi ? "WHERE " . implode(" AND ", $kondisi) : "";
 
 $data = mysqli_query($koneksi, "
@@ -104,94 +125,29 @@ $data = mysqli_query($koneksi, "
         gedung.nama_gedung,
         loker.status
     FROM loker
-    INNER JOIN gedung 
-        ON loker.id_gedung = gedung.id_gedung
+    INNER JOIN gedung ON loker.id_gedung = gedung.id_gedung
     $where
     ORDER BY loker.nomor_loker ASC
 ");
 
+$total = mysqli_num_rows(mysqli_query($koneksi, "SELECT id_loker FROM loker"));
+$kosong = mysqli_num_rows(mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE status = 'Kosong'"));
+$terisi = mysqli_num_rows(mysqli_query($koneksi, "SELECT id_loker FROM loker WHERE status != 'Kosong'"));
 
-/* =========================================================
-   STATISTIK LOKER
-   ========================================================= */
-
-$total = mysqli_num_rows(
-    mysqli_query($koneksi, "SELECT id_loker FROM loker")
-);
-
-$kosong = mysqli_num_rows(
-    mysqli_query(
-        $koneksi,
-        "SELECT id_loker FROM loker WHERE status = 'Kosong'"
-    )
-);
-
-$terisi = mysqli_num_rows(
-    mysqli_query(
-        $koneksi,
-        "SELECT id_loker FROM loker WHERE status != 'Kosong'"
-    )
-);
-
-
-/* =========================================================
-   DAFTAR GEDUNG
-   ========================================================= */
-
-$daftar_gedung = mysqli_query(
-    $koneksi,
-    "
-    SELECT id_gedung, nama_gedung
-    FROM gedung
-    ORDER BY id_gedung ASC
-    "
-);
-
-
-/* =========================================================
-   DAFTAR GEDUNG UNTUK MODAL EDIT
-   ========================================================= */
-
-$daftar_gedung_edit = mysqli_query(
-    $koneksi,
-    "
-    SELECT id_gedung, nama_gedung
-    FROM gedung
-    ORDER BY id_gedung ASC
-    "
-);
-
-
-/* =========================================================
-   DAFTAR GEDUNG UNTUK DROPDOWN FILTER
-   ========================================================= */
-
-$daftar_gedung_filter = mysqli_query(
-    $koneksi,
-    "
-    SELECT id_gedung, nama_gedung
-    FROM gedung
-    ORDER BY id_gedung ASC
-    "
-);
-
+$daftar_gedung = mysqli_query($koneksi, "SELECT id_gedung, nama_gedung FROM gedung ORDER BY id_gedung ASC");
+$daftar_gedung_edit = mysqli_query($koneksi, "SELECT id_gedung, nama_gedung FROM gedung ORDER BY id_gedung ASC");
+$daftar_gedung_filter = mysqli_query($koneksi, "SELECT id_gedung, nama_gedung FROM gedung ORDER BY id_gedung ASC");
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Loker - LokerKu</title>
-
+    <title>Data Loker - Lokify</title>
     <link rel="stylesheet" href="styleAdmin.css?v=<?= file_exists('styleAdmin.css') ? filemtime('styleAdmin.css') : time() ?>">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.css">
-
-    <!-- DataTables CSS (paging) -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-
-    <!-- Gaya khusus halaman Data Loker (tombol, modal, paging) -->
     <style>
-        /* ---------- Header kartu ---------- */
         .loker-head {
             display: flex;
             justify-content: space-between;
@@ -202,25 +158,21 @@ $daftar_gedung_filter = mysqli_query(
             margin-bottom: 16px;
             border-bottom: 1px solid #E8E3D9;
         }
-
         .loker-head h3 {
             margin: 0;
             font-size: 16px;
         }
-
         .loker-head p {
             margin: 3px 0 0;
             font-size: 12.5px;
             color: #8C867D;
         }
-
         .header-actions {
             display: flex;
             align-items: center;
             gap: 10px;
             flex-wrap: wrap;
         }
-
         .header-actions form {
             display: flex;
             align-items: center;
@@ -228,8 +180,6 @@ $daftar_gedung_filter = mysqli_query(
             flex-wrap: wrap;
             margin: 0;
         }
-
-        /* ---------- Tombol ---------- */
         .btn-add,
         .btn-cari,
         .btn-reset,
@@ -251,16 +201,13 @@ $daftar_gedung_filter = mysqli_query(
             text-decoration: none;
             transition: filter .15s, background .15s;
         }
-
         .btn-add,
         .btn-save {
             color: #fff;
             background: #E04F16;
         }
-
         .btn-add:hover,
         .btn-save:hover { filter: brightness(.93); }
-
         .btn-cari,
         .btn-cancel,
         .btn-reset,
@@ -269,37 +216,28 @@ $daftar_gedung_filter = mysqli_query(
             background: #F3F0E8;
             border-color: #E8E3D9;
         }
-
         .btn-cari:hover,
         .btn-cancel:hover,
         .btn-reset:hover,
         .btn-edit:hover { background: #E8E3D9; }
-
         .btn-delete {
             color: #B8473E;
             background: #F9E2DF;
             border-color: #DFA69F;
         }
-
         .btn-delete:hover { background: #F3D0CB; }
-
         .btn-delete-confirm {
             color: #fff;
             background: #B8473E;
         }
-
         .btn-delete-confirm:hover { filter: brightness(.93); }
-
         .actions {
             display: flex;
             justify-content: center;
             gap: 8px;
         }
-
         .btn-edit,
         .btn-delete { padding: 6px 12px; }
-
-        /* ---------- Modal ---------- */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -310,9 +248,7 @@ $daftar_gedung_filter = mysqli_query(
             padding: 20px;
             background: rgba(20, 18, 14, .45);
         }
-
         .modal-overlay.active { display: flex; }
-
         .modal-card {
             width: 100%;
             max-width: 440px;
@@ -324,22 +260,18 @@ $daftar_gedung_filter = mysqli_query(
             border-radius: 14px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, .18);
         }
-
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 18px;
         }
-
         .modal-header h2 { margin: 0; font-size: 18px; }
-
         .modal-header p {
             margin: 3px 0 0;
             font-size: 12.5px;
             color: #8C867D;
         }
-
         .modal-close {
             width: 32px;
             height: 32px;
@@ -351,11 +283,8 @@ $daftar_gedung_filter = mysqli_query(
             border-radius: 8px;
             cursor: pointer;
         }
-
         .modal-close:hover { background: #F3F0E8; }
-
         .form-group { margin-bottom: 16px; }
-
         .form-group label {
             display: block;
             margin-bottom: 6px;
@@ -363,7 +292,6 @@ $daftar_gedung_filter = mysqli_query(
             font-weight: 600;
             color: #3A3732;
         }
-
         .form-group input,
         .form-group select {
             width: 100%;
@@ -375,14 +303,12 @@ $daftar_gedung_filter = mysqli_query(
             border: 1px solid #E8E3D9;
             border-radius: 8px;
         }
-
         .form-group input:focus,
         .form-group select:focus {
             outline: none;
             border-color: #E04F16;
             box-shadow: 0 0 0 3px rgba(224, 79, 22, .12);
         }
-
         .status-info {
             display: flex;
             align-items: flex-start;
@@ -393,28 +319,21 @@ $daftar_gedung_filter = mysqli_query(
             border: 1px solid #E8E3D9;
             border-radius: 10px;
         }
-
         .status-info p {
             margin: 0;
             font-size: 12.5px;
             line-height: 1.5;
             color: #6E6A63;
         }
-
         .modal-actions {
             display: flex;
             justify-content: flex-end;
             gap: 10px;
         }
-
         .delete-card { text-align: center; }
-
         .delete-card .modal-actions { justify-content: center; }
-
         .delete-card h2 { margin: 12px 0 8px; font-size: 18px; }
-
         .delete-card p { margin: 0 0 20px; font-size: 14px; color: #6E6A63; }
-
         .delete-icon {
             width: 52px;
             height: 52px;
@@ -428,17 +347,13 @@ $daftar_gedung_filter = mysqli_query(
             background: #F9E2DF;
             border-radius: 50%;
         }
-
-        /* ---------- DataTables: paging ---------- */
         .table-container .dataTables_wrapper {
             font-size: 14px;
             color: #6E6A63;
         }
-
         .dataTables_wrapper .dataTables_length {
             margin: 4px 0 16px;
         }
-
         .dataTables_wrapper .dataTables_length select {
             appearance: none;
             -webkit-appearance: none;
@@ -455,36 +370,29 @@ $daftar_gedung_filter = mysqli_query(
             cursor: pointer;
             transition: border-color .15s, box-shadow .15s;
         }
-
         .dataTables_wrapper .dataTables_length select:hover { border-color: #CFC9BA; }
-
         .dataTables_wrapper .dataTables_length select:focus {
             outline: none;
             border-color: #E04F16;
             box-shadow: 0 0 0 3px rgba(224, 79, 22, .12);
         }
-
         table.dataTable.no-footer { border-bottom: 1px solid #E8E3D9; }
-
         .dataTables_wrapper .dataTables_info {
             padding-top: 22px;
             font-size: 13.5px;
             color: #9E988E;
         }
-
         .dataTables_wrapper .dataTables_paginate {
             padding-top: 16px;
             display: flex;
             align-items: center;
             gap: 6px;
         }
-
         .dataTables_wrapper .dataTables_paginate span {
             display: flex;
             align-items: center;
             gap: 6px;
         }
-
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             min-width: 38px;
             height: 38px;
@@ -504,14 +412,12 @@ $daftar_gedung_filter = mysqli_query(
             cursor: pointer;
             transition: background .15s, border-color .15s, color .15s, transform .15s;
         }
-
         .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
             color: #1F1D1A !important;
             background: #F3F0E8 !important;
             border-color: #D9D3C4 !important;
             transform: translateY(-1px);
         }
-
         .dataTables_wrapper .dataTables_paginate .paginate_button.current,
         .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
             color: #fff !important;
@@ -519,7 +425,6 @@ $daftar_gedung_filter = mysqli_query(
             border-color: #E04F16 !important;
             transform: none;
         }
-
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled,
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled:hover {
             color: #C2BEAD !important;
@@ -528,13 +433,11 @@ $daftar_gedung_filter = mysqli_query(
             cursor: not-allowed;
             transform: none;
         }
-
         .dataTables_wrapper .dataTables_paginate .ellipsis {
             min-width: 20px;
             color: #A8A393;
             text-align: center;
         }
-
         @media (max-width: 768px) {
             .dataTables_wrapper .dataTables_info,
             .dataTables_wrapper .dataTables_paginate {
@@ -544,8 +447,6 @@ $daftar_gedung_filter = mysqli_query(
                 flex-wrap: wrap;
             }
         }
-
-        /* ---------- Status di modal (class "status" dipakai script.js) ---------- */
         .status {
             display: inline-flex;
             align-items: center;
@@ -555,7 +456,6 @@ $daftar_gedung_filter = mysqli_query(
             border-radius: 999px;
             white-space: nowrap;
         }
-
         .status.kosong { color: #1E6B3A; background: #E4F4EA; }
         .status.terisi { color: #B8473E; background: #F9E2DF; }
     </style>
@@ -563,130 +463,63 @@ $daftar_gedung_filter = mysqli_query(
 <body>
 
 <div class="layout">
-
     <?php include "sidebar.php"; ?>
 
     <main class="content">
-
-        <!-- TOPBAR -->
         <div class="topbar-beranda">
             <div class="topbar-left">
                 <h1 class="topbar-greeting">Manajemen Loker</h1>
                 <div class="topbar-date"><?= $tanggal_hari_ini ?></div>
             </div>
-            <div class="topbar-profile-circle" title="<?= htmlspecialchars($nama_admin) ?>"><img src="admin-avatar.jpg?v=<?= file_exists('admin-avatar.jpg') ? filemtime('admin-avatar.jpg') : time() ?>" alt="Admin"></div>
+            <div class="topbar-profile-circle" title="<?= htmlspecialchars($nama_admin) ?>">
+                <img src="admin-avatar.jpg?v=<?= file_exists('admin-avatar.jpg') ? filemtime('admin-avatar.jpg') : time() ?>" alt="Admin">
+            </div>
         </div>
 
-
-        <!-- STATISTIK -->
         <div class="statistics">
-
             <div class="stat-card">
                 <div class="stat-title">TOTAL LOKER</div>
                 <div class="stat-value"><?= $total ?></div>
             </div>
-
             <div class="stat-card">
                 <div class="stat-title">LOKER KOSONG</div>
                 <div class="stat-value"><?= $kosong ?></div>
             </div>
-
             <div class="stat-card">
                 <div class="stat-title">LOKER TERISI</div>
                 <div class="stat-value"><?= $terisi ?></div>
             </div>
-
         </div>
 
-
-        <!-- DATA LOKER -->
         <div class="card">
-
             <div class="loker-head">
-
                 <div>
                     <h3>Data Loker</h3>
                     <p>Daftar seluruh loker yang tersedia di sekolah</p>
                 </div>
-
                 <div class="header-actions">
-
-                    <!-- FILTER PER GEDUNG + PENCARIAN -->
                     <form method="GET" action="dataloker.php">
-
-                        <select
-                            name="gedung"
-                            class="form-control filter-gedung"
-                            onchange="this.form.submit()"
-                            style="max-width: 170px;"
-                        >
-
+                        <select name="gedung" class="form-control filter-gedung" onchange="this.form.submit()" style="max-width: 170px;">
                             <option value="0">Semua Gedung</option>
-
-                            <?php while (
-                                $g = mysqli_fetch_assoc(
-                                    $daftar_gedung_filter
-                                )
-                            ): ?>
-
-                                <option
-                                    value="<?= $g['id_gedung'] ?>"
-                                    <?= $filter_gedung == $g['id_gedung'] ? 'selected' : '' ?>
-                                >
-                                    <?= htmlspecialchars(
-                                        $g['nama_gedung']
-                                    ) ?>
+                            <?php while ($g = mysqli_fetch_assoc($daftar_gedung_filter)): ?>
+                                <option value="<?= $g['id_gedung'] ?>" <?= $filter_gedung == $g['id_gedung'] ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($g['nama_gedung']) ?>
                                 </option>
-
                             <?php endwhile; ?>
-
                         </select>
-
-                        <input
-                            type="search"
-                            name="cari"
-                            class="form-control cari-loker"
-                            placeholder="Cari kode loker..."
-                            value="<?= htmlspecialchars($cari) ?>"
-                            style="max-width: 200px;"
-                            autocomplete="off"
-                        >
-
-                        <button type="submit" class="btn-cari">
-                            Cari
-                        </button>
-
+                        <input type="search" name="cari" class="form-control cari-loker" placeholder="Cari kode loker..." value="<?= htmlspecialchars($cari) ?>" style="max-width: 200px;" autocomplete="off">
+                        <button type="submit" class="btn-cari">Cari</button>
                         <?php if ($cari !== '' || $filter_gedung): ?>
-
-                            <a href="dataloker.php" class="btn-reset">
-                                Reset
-                            </a>
-
+                            <a href="dataloker.php" class="btn-reset">Reset</a>
                         <?php endif; ?>
-
                     </form>
-
-
-                    <button
-                        type="button"
-                        class="btn-add"
-                        onclick="bukaModalTambah()"
-                    >
-                        + Tambah Loker
-                    </button>
-
+                    <button type="button" class="btn-add" onclick="bukaModalTambah()">+ Tambah Loker</button>
                 </div>
-
             </div>
 
-
-            <!-- TABEL -->
             <div class="table-container">
-
                 <table class="table-bordered">
-
                     <thead>
-
                         <tr>
                             <th style="width: 50px; text-align: center;">NO</th>
                             <th style="text-align: center;">KODE LOKER</th>
@@ -694,492 +527,278 @@ $daftar_gedung_filter = mysqli_query(
                             <th style="text-align: center; width: 140px;">STATUS</th>
                             <th style="text-align: center; width: 180px;">ACTION</th>
                         </tr>
-
                     </thead>
-
-
                     <tbody>
-
                     <?php if (mysqli_num_rows($data) == 0): ?>
-
                         <tr>
                             <td colspan="5" class="empty-row" style="text-align: center; color: #9E988E; padding: 25px;">
                                 Tidak ada loker yang cocok.
                             </td>
                         </tr>
-
                     <?php endif; ?>
 
                     <?php
-
                     $no = 1;
-
                     mysqli_data_seek($data, 0);
-
                     while ($row = mysqli_fetch_assoc($data)):
-
-                        /*
-                         * Data untuk dikirim ke JavaScript
-                         */
-
-                        $js_id = (int) $row['id_loker'];
-
-                        $js_nomor = htmlspecialchars(
-                            json_encode($row['nomor_loker']),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-
-                        $js_id_gedung = (int) $row['id_gedung'];
-
-                        $js_status = htmlspecialchars(
-                            json_encode($row['status']),
-                            ENT_QUOTES,
-                            'UTF-8'
-                        );
-
+                        $js_id = (int)$row['id_loker'];
+                        $js_nomor = htmlspecialchars(json_encode($row['nomor_loker']), ENT_QUOTES, 'UTF-8');
+                        $js_id_gedung = (int)$row['id_gedung'];
+                        $js_status = htmlspecialchars(json_encode($row['status']), ENT_QUOTES, 'UTF-8');
                     ?>
-
                         <tr>
-
-                            <!-- NO -->
-
                             <td style="text-align: center; color: #9E988E;"><?= $no++ ?></td>
-
-
-                            <!-- NOMOR LOKER -->
-
                             <td style="text-align: center;">
-                                <span class="badge badge-kode">
-                                    <?= htmlspecialchars(
-                                        $row['nomor_loker']
-                                    ) ?>
-                                </span>
+                                <span class="badge badge-kode"><?= htmlspecialchars($row['nomor_loker']) ?></span>
                             </td>
-
-
-                            <!-- GEDUNG -->
-
+                            <td style="text-align: center;"><?= htmlspecialchars($row['nama_gedung']) ?></td>
                             <td style="text-align: center;">
-                                <?= htmlspecialchars(
-                                    $row['nama_gedung']
-                                ) ?>
-                            </td>
-
-
-                            <!-- STATUS -->
-
-                            <td style="text-align: center;">
-
                                 <?php if ($row['status'] == 'Kosong'): ?>
-
                                     <span class="badge badge-status badge-kosong">Kosong</span>
-
                                 <?php else: ?>
-
                                     <span class="badge badge-status badge-terisi">Terisi</span>
-
                                 <?php endif; ?>
-
                             </td>
-
-
-                            <!-- ACTION -->
-
                             <td>
-
                                 <div class="actions">
-
-
-                                    <!-- EDIT -->
-
-                                    <button
-                                        type="button"
-                                        class="btn-edit"
-                                        onclick="bukaModalEdit(
-                                            <?= $js_id ?>,
-                                            <?= $js_nomor ?>,
-                                            <?= $js_id_gedung ?>,
-                                            <?= $js_status ?>
-                                        )"
-                                    >
-                                        Edit
-                                    </button>
-
-
-                                    <!-- DELETE -->
-
-                                    <button
-                                        type="button"
-                                        class="btn-delete"
-                                        onclick="bukaModalHapus(
-                                            <?= $js_id ?>,
-                                            <?= $js_nomor ?>
-                                        )"
-                                    >
-                                        Delete
-                                    </button>
-
-
+                                    <button type="button" class="btn-edit" onclick="bukaModalEdit(<?= $js_id ?>, <?= $js_nomor ?>, <?= $js_id_gedung ?>, <?= $js_status ?>)">Edit</button>
+                                    <button type="button" class="btn-delete" onclick="bukaModalHapus(<?= $js_id ?>, <?= $js_nomor ?>)">Delete</button>
                                 </div>
-
                             </td>
-
                         </tr>
-
                     <?php endwhile; ?>
-
                     </tbody>
-
                 </table>
-
             </div>
-
         </div>
-
     </main>
-
 </div>
 
-
-<!-- ================================================= -->
-<!-- MODAL TAMBAH LOKER -->
-<!-- ================================================= -->
-
 <div class="modal-overlay" id="modalTambah">
-
     <div class="modal-card">
-
         <div class="modal-header">
-
             <div>
                 <h2>Tambah Loker</h2>
                 <p>Tambahkan data loker baru</p>
             </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                onclick="tutupModal()"
-            >
-                ×
-            </button>
-
+            <button type="button" class="modal-close" onclick="tutupModal()">×</button>
         </div>
-
-
-        <form action="tambah_loker.php" method="POST">
-
-            <!-- NOMOR LOKER -->
-
+        <form action="dataloker.php" method="POST">
             <div class="form-group">
-
                 <label>Nomor Loker</label>
-
-                <input
-                    type="text"
-                    name="nomor_loker"
-                    placeholder="Contoh: A001"
-                    required
-                >
-
+                <input type="text" name="nomor_loker" placeholder="Contoh: A001" required>
             </div>
-
-
-            <!-- GEDUNG -->
-
             <div class="form-group">
-
                 <label>Gedung</label>
-
                 <select name="id_gedung" required>
-
-                    <option value="" disabled selected>
-                        -- Pilih Gedung --
-                    </option>
-
-                    <?php while (
-                        $gedung = mysqli_fetch_assoc(
-                            $daftar_gedung
-                        )
-                    ): ?>
-
+                    <option value="" disabled selected>-- Pilih Gedung --</option>
+                    <?php while ($gedung = mysqli_fetch_assoc($daftar_gedung)): ?>
                         <option value="<?= $gedung['id_gedung'] ?>">
-                            <?= htmlspecialchars(
-                                $gedung['nama_gedung']
-                            ) ?>
+                            <?= htmlspecialchars($gedung['nama_gedung']) ?>
                         </option>
-
                     <?php endwhile; ?>
-
                 </select>
-
             </div>
-
-
-            <!-- STATUS -->
-
             <div class="status-info">
-
                 <span class="badge badge-status badge-kosong">Kosong</span>
-
                 <p>
-                    Loker baru otomatis berstatus
-                    <strong>Kosong</strong>.
-
-                    Status akan berubah otomatis ketika
-                    user mengisi barang.
+                    Loker baru otomatis berstatus <strong>Kosong</strong>. Status akan berubah otomatis ketika user mengisi barang.
                 </p>
-
             </div>
-
-
-            <!-- ACTION -->
-
             <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn-cancel"
-                    onclick="tutupModal()"
-                >
-                    Batal
-                </button>
-
-                <button
-                    type="submit"
-                    name="simpan"
-                    class="btn-save"
-                >
-                    Simpan Loker
-                </button>
-
+                <button type="button" class="btn-cancel" onclick="tutupModal()">Batal</button>
+                <button type="submit" name="simpan" class="btn-save">Simpan Loker</button>
             </div>
-
         </form>
-
     </div>
-
 </div>
 
-
-<!-- ================================================= -->
-<!-- MODAL EDIT LOKER -->
-<!-- ================================================= -->
-
 <div class="modal-overlay" id="modalEdit">
-
     <div class="modal-card">
-
         <div class="modal-header">
-
             <div>
                 <h2>Edit Loker</h2>
                 <p>Ubah informasi loker</p>
             </div>
-
-            <button
-                type="button"
-                class="modal-close"
-                onclick="tutupEdit()"
-            >
-                ×
-            </button>
-
+            <button type="button" class="modal-close" onclick="tutupEdit()">×</button>
         </div>
-
-
-        <form action="edit_loker.php" method="POST">
-
-            <!-- ID LOKER -->
-
-            <input
-                type="hidden"
-                name="id_loker"
-                id="edit_id_loker"
-            >
-
-
-            <!-- NOMOR LOKER -->
-
+        <form action="dataloker.php" method="POST">
+            <input type="hidden" name="id_loker" id="edit_id_loker">
             <div class="form-group">
-
                 <label>Nomor Loker</label>
-
-                <input
-                    type="text"
-                    name="nomor_loker"
-                    id="edit_nomor_loker"
-                    required
-                >
-
+                <input type="text" name="nomor_loker" id="edit_nomor_loker" required>
             </div>
-
-
-            <!-- GEDUNG -->
-
             <div class="form-group">
-
                 <label>Gedung</label>
-
-                <select
-                    name="id_gedung"
-                    id="edit_lokasi"
-                    required
-                >
-
-                    <?php while (
-                        $gedung = mysqli_fetch_assoc(
-                            $daftar_gedung_edit
-                        )
-                    ): ?>
-
+                <select name="id_gedung" id="edit_lokasi" required>
+                    <?php while ($gedung = mysqli_fetch_assoc($daftar_gedung_edit)): ?>
                         <option value="<?= $gedung['id_gedung'] ?>">
-                            <?= htmlspecialchars(
-                                $gedung['nama_gedung']
-                            ) ?>
+                            <?= htmlspecialchars($gedung['nama_gedung']) ?>
                         </option>
-
                     <?php endwhile; ?>
-
                 </select>
-
             </div>
-
-
-            <!-- STATUS -->
-
             <div class="status-info">
-
-                <span class="badge badge-status" id="edit_status_tampilan">
-                    Status
-                </span>
-
+                <span class="badge badge-status" id="edit_status_tampilan">Status</span>
                 <p>
-                    Status loker tidak dapat diubah
-                    oleh admin.
-
-                    Status akan ditentukan otomatis
-                    berdasarkan barang user.
+                    Status loker tidak dapat diubah oleh admin. Status akan ditentukan otomatis berdasarkan barang user.
                 </p>
-
             </div>
-
-
-            <!-- ACTION -->
-
             <div class="modal-actions">
-
-                <button
-                    type="button"
-                    class="btn-cancel"
-                    onclick="tutupEdit()"
-                >
-                    Batal
-                </button>
-
-                <button
-                    type="submit"
-                    name="edit"
-                    class="btn-save"
-                >
-                    Simpan Perubahan
-                </button>
-
+                <button type="button" class="btn-cancel" onclick="tutupEdit()">Batal</button>
+                <button type="submit" name="edit" class="btn-save">Simpan Perubahan</button>
             </div>
-
         </form>
-
     </div>
-
 </div>
-
-
-<!-- ================================================= -->
-<!-- MODAL HAPUS LOKER -->
-<!-- ================================================= -->
 
 <div class="modal-overlay" id="modalHapus">
-
     <div class="modal-card delete-card">
-
         <div class="delete-icon">!</div>
-
         <h2>Hapus Loker?</h2>
-
-        <p>
-            Apakah kamu yakin ingin menghapus loker
-
-            <strong id="namaLokerHapus"></strong>?
-        </p>
-
+        <p>Apakah kamu yakin ingin menghapus loker <strong id="namaLokerHapus"></strong>?</p>
         <div class="modal-actions">
-
-            <button
-                type="button"
-                class="btn-cancel"
-                onclick="tutupHapus()"
-            >
-                Batal
-            </button>
-
-            <a
-                href="#"
-                id="linkHapus"
-                class="btn-delete-confirm"
-            >
-                Ya, Hapus
-            </a>
-
+            <button type="button" class="btn-cancel" onclick="tutupHapus()">Batal</button>
+            <a href="#" id="linkHapus" class="btn-delete-confirm">Ya, Hapus</a>
         </div>
-
     </div>
-
 </div>
 
-
-<!-- ================================================= -->
-<!-- JAVASCRIPT -->
-<!-- ================================================= -->
-
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/2.1.4/toastr.min.js"></script>
-
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-
-<script src="script.js"></script>
-
 <script>
-/* ---------- DataTables (paging) ---------- */
+function bukaModalTambah() {
+    const modal = document.getElementById("modalTambah");
+    if (modal) {
+        modal.classList.add("active");
+    }
+}
+
+function tutupModal() {
+    const modal = document.getElementById("modalTambah");
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
+function bukaModalEdit(id, nomor, lokasi, status) {
+    const modal = document.getElementById("modalEdit");
+    const idInput = document.getElementById("edit_id_loker");
+    const nomorInput = document.getElementById("edit_nomor_loker");
+    const lokasiInput = document.getElementById("edit_lokasi");
+    const statusTampilan = document.getElementById("edit_status_tampilan");
+
+    if (!modal) {
+        return;
+    }
+
+    idInput.value = id;
+    nomorInput.value = nomor;
+    lokasiInput.value = lokasi;
+
+    if (status === "Kosong") {
+        statusTampilan.textContent = "● Kosong";
+        statusTampilan.className = "status kosong";
+    } else {
+        statusTampilan.textContent = "● Terisi";
+        statusTampilan.className = "status terisi";
+    }
+
+    modal.classList.add("active");
+}
+
+function tutupEdit() {
+    const modal = document.getElementById("modalEdit");
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
+function bukaModalHapus(id, nomor) {
+    const modal = document.getElementById("modalHapus");
+    const namaLoker = document.getElementById("namaLokerHapus");
+    const linkHapus = document.getElementById("linkHapus");
+
+    if (!modal) {
+        return;
+    }
+
+    namaLoker.textContent = nomor;
+    linkHapus.href = "dataloker.php?aksi=hapus&id_loker=" + id;
+
+    modal.classList.add("active");
+}
+
+function tutupHapus() {
+    const modal = document.getElementById("modalHapus");
+    if (modal) {
+        modal.classList.remove("active");
+    }
+}
+
+document.addEventListener("click", function (event) {
+    if (event.target.classList.contains("modal-overlay")) {
+        event.target.classList.remove("active");
+    }
+});
+
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape") {
+        document.querySelectorAll(".modal-overlay").forEach(function (modal) {
+            modal.classList.remove("active");
+        });
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof toastr === "undefined") {
+        return;
+    }
+
+    toastr.options = {
+        closeButton: true,
+        progressBar: true,
+        positionClass: "toast-top-right",
+        timeOut: 3000
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const pesan = params.get("pesan");
+
+    if (pesan === "tambah") {
+        toastr.success("Data Loker berhasil ditambahkan!", "Berhasil");
+    } else if (pesan === "edit") {
+        toastr.success("Data Loker berhasil diubah!", "Berhasil");
+    } else if (pesan === "hapus") {
+        toastr.error("Data Loker berhasil dihapus!", "Dihapus");
+    } else if (pesan === "duplikat") {
+        toastr.error("Kode Loker sudah digunakan!", "Gagal");
+    } else if (pesan === "kosong") {
+        toastr.error("Nomor loker dan gedung wajib diisi!", "Gagal");
+    } else if (pesan === "terisi") {
+        toastr.error("Loker yang sedang terisi tidak dapat dihapus!", "Gagal");
+    } else if (pesan === "gagal") {
+        toastr.error("Terjadi kesalahan saat memproses data!", "Gagal");
+    }
+
+    if (pesan) {
+        window.history.replaceState({}, document.title, "dataloker.php");
+    }
+});
 
 $(document).ready(function () {
-
     var tabel = $('.table-container table');
-
-    /*
-     * Baris "Tidak ada loker yang cocok." memakai colspan,
-     * DataTables tidak mendukung itu, jadi dihapus dulu.
-     * Pesan kosong diganti oleh bawaan DataTables (emptyTable).
-     */
     tabel.find('tbody tr:has(td.empty-row)').remove();
-
     tabel.DataTable({
-
         paging: true,
         pageLength: 10,
         lengthMenu: [5, 10, 25, 50],
         pagingType: 'full_numbers',
-
-        /* Pencarian & filter sudah ada di form PHP */
         searching: false,
-
-        /* Urutan sudah diatur dari query PHP */
         ordering: false,
-
         info: true,
         autoWidth: false,
-
         language: {
             lengthMenu: 'Tampilkan _MENU_ data',
             info: 'Menampilkan _START_ - _END_ dari _TOTAL_ loker',
@@ -1193,12 +812,9 @@ $(document).ready(function () {
                 previous: '‹'
             }
         }
-
     });
-
 });
 </script>
-
 
 </body>
 </html>
