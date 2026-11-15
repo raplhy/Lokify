@@ -4,16 +4,12 @@
 <head>
 
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Register Siswa - LOKIFY</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;800&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css">
 
 
@@ -176,49 +172,29 @@
         color: #94a3b8;
     }
 
+    .link-landing {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .link-landing:hover {
+        color: #FF9149;
+    }
+
     </style>
 
 </head>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
-
-    <script>
-        toastr.options = {
-            closeButton: true,
-            progressBar: true,
-            positionClass: "toast-top-right",
-         timeOut: 3000
-        };
-    </script>
-
-    <?php
-    if (isset($_GET['error'])) {
-
-        if ($_GET['error'] == 'username') {
-            echo "<script>
-                toastr.error('Username / NIS sudah terdaftar!', 'Registrasi Gagal');
-            </script>";
-        }
-
-        if ($_GET['error'] == 'empty') {
-            echo "<script>
-                toastr.warning('Semua data harus diisi!', 'Peringatan');
-            </script>";
-        }
-
-        if ($_GET['error'] == 'failed') {
-            echo "<script>
-                toastr.error('Registrasi gagal, silakan coba lagi!', 'Registrasi Gagal');
-            </script>";
-        }
-    }
-    ?>
-
-</body>
 
 <body>
-
 
 <div class="card-register">
 
@@ -347,7 +323,19 @@
         </form>
 
 
+        <!-- KEMBALI KE LANDING PAGE -->
+
+        <a
+            href="../LandingPage/index.php"
+            class="link-landing"
+        >
+            <i class="fa-solid fa-arrow-left"></i>
+            Kembali ke Beranda
+        </a>
+
+
     </div>
+
 
     <div class="card-footer-custom">
 
@@ -358,6 +346,10 @@
 
 </div>
 
+
+<!-- ================================================= -->
+<!-- JAVASCRIPT (TOASTR) -->
+<!-- ================================================= -->
 
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
@@ -397,11 +389,4 @@ if (isset($_GET['error'])) {
 
 </body>
 
-</html>
-
-</div>
-
-
-</body>
-
-</html>
+</html> 

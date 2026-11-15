@@ -233,6 +233,24 @@ unset($_SESSION['form_username']);
         color: #94a3b8;
     }
 
+
+    .link-landing {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 16px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+    .link-landing:hover {
+        color: #FF9149;
+    }
+
     </style>
 
 </head>
@@ -375,6 +393,17 @@ unset($_SESSION['form_username']);
             </a>
 
         </form>
+
+        <!-- KEMBALI KE LANDING PAGE -->
+
+        <a
+            href="../LandingPage/index.php"
+            class="link-landing"
+        >
+            <i class="fa-solid fa-arrow-left"></i>
+            Kembali ke Beranda
+        </a>
+
 
 
     </div>

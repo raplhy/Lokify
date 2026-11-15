@@ -136,7 +136,7 @@ $langkah = [
 
     <div class="nav-btn">
         <a href="../login/login.php" class="btn btn-light">Login</a>
-        <a href="../login/login.php" class="btn">Register</a>
+        <a href="../login/register.php" class="btn">Register</a>
     </div>
 
     <button class="nav-toggle" id="navToggle" type="button" aria-label="Menu">&#9776;</button>
