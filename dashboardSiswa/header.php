@@ -4,6 +4,8 @@ $role = $role ?? $_SESSION['role'] ?? 'siswa';
 $nama_lengkap = $nama_lengkap ?? $_SESSION['nama_lengkap'] ?? 'Siswa';
 $inisial = $inisial ?? strtoupper(substr(trim($nama_lengkap), 0, 1));
 $foto_user = $foto_user ?? '';
+// Fallback jika $data_user tidak terdefinisi (untuk menghindari error)
+$data_user = $data_user ?? ['email' => '', 'no_hp' => ''];
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -253,3 +255,114 @@ $foto_user = $foto_user ?? '';
     </div>
 
     <div class="content-area">
+
+        <!-- ========================================== -->
+        <!-- 1. KOTAK NOTIFIKASI (SUKSES / GAGAL) -->
+        <!-- ========================================== -->
+        <?php if (isset($_SESSION['flash_success'])): ?>
+            <div id="notif-success" style="background: #FDF3E7; color: #B85D19; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; font-weight: bold; border: 1px solid #E5A970; transition: opacity 0.5s ease;">
+                <i class="fa-solid fa-circle-check"></i> <?= $_SESSION['flash_success']; ?>
+            </div>
+            <?php unset($_SESSION['flash_success']); ?>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['flash_error'])): ?>
+            <div id="notif-error" style="background: #F9E2DF; color: #B8473E; padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; font-weight: bold; border: 1px solid #DFA69F; transition: opacity 0.5s ease;">
+                <i class="fa-solid fa-circle-exclamation"></i> <?= $_SESSION['flash_error']; ?>
+            </div>
+            <?php unset($_SESSION['flash_error']); ?>
+        <?php endif; ?>
+
+        <!-- ========================================== -->
+        <!-- 2. MODAL EDIT PROFIL (DIPINDAHKAN KE SINI) -->
+        <!-- ========================================== -->
+        <div class="modal-bg" id="modalProfile">
+            <div class="modal-box">
+                <h3><i class="fa-solid fa-user-gear"></i> Pengaturan Profil Saya</h3>
+                
+                <!-- ACTION MENGARAH KE proses_profile.php -->
+                <form action="proses_profile.php" method="POST" enctype="multipart/form-data">
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <div class="avatar-circle" style="width: 70px; height: 70px; margin: 0 auto 10px; font-size: 24px; overflow: hidden;">
+                            <img id="preview-foto" src="<?= (!empty($foto_user) && file_exists(__DIR__ . '/uploads/' . $foto_user)) ? 'uploads/' . htmlspecialchars($foto_user) : '' ?>" 
+                                 style="width:100%; height:100%; object-fit:cover; display: <?= (!empty($foto_user) && file_exists(__DIR__ . '/uploads/' . $foto_user)) ? 'block' : 'none' ?>;">
+                            
+                            <span id="preview-inisial" style="display: <?= (!empty($foto_user) && file_exists(__DIR__ . '/uploads/' . $foto_user)) ? 'none' : 'block' ?>;">
+                                <?php echo $inisial; ?>
+                            </span>
+                        </div>
+                        
+                        <label style="cursor: pointer; font-size: 12px; color: #C85A17; font-weight: 600;">
+                            <i class="fa-solid fa-camera"></i> Ubah Foto Profil
+                            <input type="file" name="foto_profil" id="foto_profil" accept="image/*" style="display: none;">
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nama Lengkap</label>
+                        <input type="text" name="nama_lengkap" class="form-input" value="<?php echo htmlspecialchars($nama_lengkap); ?>" readonly style="background: #FAF8F5; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" name="email" class="form-input" value="<?= htmlspecialchars($data_user['email'] ?? ''); ?>" placeholder="alamat@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>No. WhatsApp / Telepon</label>
+                        <input type="text" name="no_hp" class="form-input" value="<?= htmlspecialchars($data_user['no_hp'] ?? ''); ?>" placeholder="08123456789">
+                    </div>
+                    <div class="form-group">
+                        <label>Password Baru (Kosongkan jika tidak ingin diubah)</label>
+                        <input type="password" name="password_baru" class="form-input" placeholder="Ketik password baru..." autocomplete="new-password">
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn-secondary" onclick="closeModalProfile()">Batal</button>
+                        <button type="submit" name="update_profil" class="btn-primary">Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- 3. SCRIPT UNTUK PREVIEW FOTO & NOTIFIKASI -->
+        <!-- ========================================== -->
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Preview Foto Profil
+            const inputFoto = document.getElementById('foto_profil');
+            if (inputFoto) {
+                inputFoto.addEventListener('change', function(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const previewImg = document.getElementById('preview-foto');
+                            const previewInisial = document.getElementById('preview-inisial');
+                            if (previewImg && previewInisial) {
+                                previewImg.src = e.target.result;
+                                previewImg.style.display = 'block';
+                                previewInisial.style.display = 'none';
+                            }
+                        }
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // Hilangkan Notifikasi Otomatis
+            const notifSuccess = document.getElementById('notif-success');
+            const notifError = document.getElementById('notif-error');
+            if (notifSuccess) {
+                setTimeout(function() {
+                    notifSuccess.style.opacity = '0'; 
+                    setTimeout(() => notifSuccess.remove(), 500); 
+                }, 3000); 
+            }
+            if (notifError) {
+                setTimeout(function() {
+                    notifError.style.opacity = '0';
+                    setTimeout(() => notifError.remove(), 500);
+                }, 3000);
+            }
+        });
+        </script>

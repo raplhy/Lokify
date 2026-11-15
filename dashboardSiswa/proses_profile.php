@@ -73,9 +73,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profil'])) {
         $_SESSION['flash_error'] = 'Gagal memperbarui data: ' . mysqli_error($koneksi);
     }
 
-    // KEMBALI KE HALAMAN SEBELUMNYA (Entah itu dashboard atau indexBarang)
+    // ==========================================
+    // BAGIAN YANG DIPERBAIKI: Bersihkan URL sebelum Redirect
+    // ==========================================
     $halaman_sebelumnya = $_SERVER['HTTP_REFERER'] ?? 'dashboard.php';
-    header("Location: " . $halaman_sebelumnya);
+    
+    // Ambil bagian URL tanpa parameter ?pesan=...
+    $url_parts = parse_url($halaman_sebelumnya);
+    if (isset($url_parts['query'])) {
+        parse_str($url_parts['query'], $query_params);
+        unset($query_params['pesan']); // Hapus pesan lama
+        unset($query_params['total']); // Hapus total lama (jika ada)
+        $url_parts['query'] = http_build_query($query_params);
+    }
+    
+    // Susun ulang URL yang bersih
+    $url_bersih = $url_parts['scheme'] . '://' . $url_parts['host'] . (isset($url_parts['port']) ? ':' . $url_parts['port'] : '') . $url_parts['path'];
+    if (!empty($url_parts['query'])) {
+        $url_bersih .= '?' . $url_parts['query'];
+    }
+
+    header("Location: " . $url_bersih);
     exit;
 } else {
     header("Location: dashboard.php");
