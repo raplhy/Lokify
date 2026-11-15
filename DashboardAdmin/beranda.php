@@ -73,7 +73,8 @@ $area_polygon_points = round($pad_l, 1) . ',' . $baseline_y . ' ' . $polyline_po
             </div>
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div class="topbar-profile-circle" title="<?= htmlspecialchars($nama_admin) ?>"><img src="admin-avatar.jpg" alt="Admin"></div>
-                <a href="../login/logout.php" style="background: #F9E2DF; color: #B8473E; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; border: 1px solid #DFA69F; display: inline-block;" onclick="return confirm('Apakah Anda yakin ingin keluar dari sistem Admin?')">Logout</a>
+                <!-- BAGIAN YANG DIUBAH: Onclick diganti dengan fungsi SweetAlert -->
+                <a href="javascript:void(0);" style="background: #F9E2DF; color: #B8473E; padding: 8px 14px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 13px; border: 1px solid #DFA69F; display: inline-block;" onclick="konfirmasiLogoutAdmin()">Logout</a>
             </div>
         </div>
         <div class="statistics-5">
@@ -213,5 +214,28 @@ $area_polygon_points = round($pad_l, 1) . ',' . $baseline_y . ' ' . $polyline_po
         </div>
     </main>
 </div>
+
+<!-- TAMBAHAN: SCRIPT SWEETALERT2 UNTUK LOGOUT ADMIN -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function konfirmasiLogoutAdmin() {
+    Swal.fire({
+        title: 'Apakah Anda yakin?',
+        text: "Anda akan keluar dari sistem Admin!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#E04F16',
+        cancelButtonColor: '#181715',
+        confirmButtonText: 'Ya, Keluar!',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = '../login/logout.php';
+        }
+    });
+}
+</script>
+<!-- AKHIR TAMBAHAN -->
+
 </body>
 </html>

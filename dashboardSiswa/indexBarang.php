@@ -594,7 +594,16 @@ if (formModal) {
             if (!validasiCustom(input)) {
                 event.preventDefault();
                 input.focus();
-                alert('Periksa kembali nama barang yang diisi.');
+                
+                // BAGIAN NOTIFIKASI YANG DIUBAH
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: 'Periksa kembali nama barang yang diisi.',
+                    confirmButtonColor: '#E04F16'
+                });
+                // --------------------------
+                
                 return;
             }
         }
@@ -632,12 +641,42 @@ function konfirmasiAksi(jenisAksi) {
     const jumlah = document.querySelectorAll('.item-checkbox:checked').length;
 
     if (jumlah === 0) {
-        alert('Pilih minimal satu barang terlebih dahulu.');
+        // BAGIAN NOTIFIKASI YANG DIUBAH
+        Swal.fire({
+            icon: 'warning',
+            title: 'Peringatan',
+            text: 'Pilih minimal satu barang terlebih dahulu.',
+            confirmButtonColor: '#E04F16'
+        });
+        // --------------------------
         return false;
     }
 
     if (jenisAksi === 'verifikasi') {
-        return confirm('Tandai ' + jumlah + ' barang sebagai sudah diambil?');
+        // BAGIAN NOTIFIKASI YANG DIUBAH
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: 'Tandai ' + jumlah + ' barang sebagai sudah diambil?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#E04F16',
+            cancelButtonColor: '#181715',
+            confirmButtonText: 'Ya, Tandai!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // Create a hidden input to simulate the button click
+                const form = document.getElementById('formAksiMassal');
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'aksi_massal';
+                hiddenInput.value = 'verifikasi';
+                form.appendChild(hiddenInput);
+                form.submit();
+            }
+        });
+        return false;
+        // --------------------------
     }
 
     return false;

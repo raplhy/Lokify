@@ -130,10 +130,12 @@ include __DIR__ . '/header.php';
 
                 <div style="margin-top: 20px; padding: 14px; background-color: #FAF8F5; border: 1px solid #E8E3D9; border-radius: 4px;">
                     <?php if ($barang['status'] === 'Tersimpan'): ?>
-                        <form action="verificationBarang.php" method="POST" onsubmit="return confirm('Apakah Anda yakin barang ini sudah diambil oleh siswa?')">
+                        <!-- BAGIAN YANG DIUBAH: onsubmit diganti class, name dipindah ke hidden input -->
+                        <form action="verificationBarang.php" method="POST" class="form-verifikasi-ambil">
                             <input type="hidden" name="id" value="<?= $barang['id_barang'] ?>">
                             <input type="hidden" name="gedung_asal" value="<?= htmlspecialchars($gedung_asal) ?>">
-                            <button type="submit" name="konfirmasi_ambil" value="1" class="btn btn-success">Ambil Barang</button>
+                            <input type="hidden" name="konfirmasi_ambil" value="1">
+                            <button type="submit" class="btn btn-success">Ambil Barang</button>
                             <a href="indexBarang.php?gedung=<?= urlencode($gedung_asal) ?>" class="btn btn-secondary">Batal</a>
                         </form>
                     <?php else: ?>
@@ -149,5 +151,35 @@ include __DIR__ . '/header.php';
         </div>
     </div>
 </div>
+
+<!-- TAMBAHAN: SCRIPT SWEETALERT2 -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formVerifikasi = document.querySelector('.form-verifikasi-ambil');
+    
+    if (formVerifikasi) {
+        formVerifikasi.addEventListener('submit', function(e) {
+            e.preventDefault(); // Tahan form agar tidak langsung submit
+            
+            Swal.fire({
+                title: 'Apakah Anda yakin?',
+                text: "Barang ini sudah diambil oleh siswa?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#E04F16',
+                cancelButtonColor: '#181715',
+                confirmButtonText: 'Ya, Ambil!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    formVerifikasi.submit(); // Lanjutkan submit jika klik "Ya"
+                }
+            });
+        });
+    }
+});
+</script>
+<!-- AKHIR TAMBAHAN -->
 
 <?php include __DIR__ . '/footer.php'; ?>
