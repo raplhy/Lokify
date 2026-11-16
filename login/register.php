@@ -326,7 +326,7 @@
         <!-- KEMBALI KE LANDING PAGE -->
 
         <a
-            href="../LandingPage/index.php"
+            href="../index.php"
             class="link-landing"
         >
             <i class="fa-solid fa-arrow-left"></i>
