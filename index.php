@@ -1,6 +1,6 @@
 <?php
 session_start();
-include __DIR__ . "/../login/koneksi.php";
+include __DIR__ . "/login/koneksi.php";
 
 // ==========================================
 // AMBIL DATA GEDUNG DARI DATABASE

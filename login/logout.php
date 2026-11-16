@@ -11,7 +11,7 @@ session_destroy();
 if ($role === 'admin') {
     header("Location: admin_login.php");
 } else {
-    header("Location: ../LandingPage/index.php");
+    header("Location: ../index.php");
 }
 exit();
 ?>
